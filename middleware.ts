@@ -1,33 +1,76 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { verifySession, TEAM_COOKIE, CLIENT_COOKIE } from "@/lib/session";
 
 // Two domains point at this one deployment:
-//   launchpad.arandmedia.com -> internal team dashboard ("/", "/projects/[id]")
-//   portal.arandmedia.com    -> client portal only ("/[clientSlug]")
+//   launchpad.arandmedia.com -> internal team dashboard, gated by a team session
+//   portal.arandmedia.com    -> client portal, gated by a client session scoped
+//                                to that client's own slug
 //
-// This middleware keeps the internal dashboard and project detail pages
-// (and the write-capable /api/projects routes) unreachable from the
-// client-facing portal domain, and sends anyone who lands on the portal
-// domain's bare root back to the internal domain instead of exposing
-// team data there.
-const INTERNAL_ONLY_PATHS = [/^\/projects(\/|$)/, /^\/api\/projects(\/|$)/];
+// Auth pages and the /api/auth/* routes are always reachable so the login
+// flow itself never gets caught in its own gate.
 
-export function middleware(request: NextRequest) {
+const PUBLIC_INTERNAL_PATHS = ["/login", "/setup"];
+const PUBLIC_PORTAL_PATHS = ["/portal-login"];
+const INTERNAL_ONLY_PATHS = [/^\/projects(\/|$)/, /^\/api\/projects(\/|$)/, /^\/api\/clients(\/|$)/, /^\/api\/tasks(\/|$)/, /^\/api\/milestones(\/|$)/];
+
+function isAsset(pathname: string) {
+  return (
+    pathname.startsWith("/_next") ||
+    pathname === "/favicon.ico" ||
+    pathname.startsWith("/api/auth/")
+  );
+}
+
+export async function middleware(request: NextRequest) {
   const host = request.headers.get("host") || "";
   const isPortalDomain = host.startsWith("portal.");
+  const { pathname } = request.nextUrl;
 
-  if (!isPortalDomain) {
+  if (isAsset(pathname)) {
     return NextResponse.next();
   }
 
-  const { pathname } = request.nextUrl;
+  if (isPortalDomain) {
+    if (pathname === "/") {
+      return NextResponse.redirect(new URL("https://launchpad.arandmedia.com/"));
+    }
 
-  if (pathname === "/") {
-    return NextResponse.redirect(new URL("https://launchpad.arandmedia.com/"));
+    if (INTERNAL_ONLY_PATHS.some((pattern) => pattern.test(pathname))) {
+      return NextResponse.rewrite(new URL("/404", request.url));
+    }
+
+    if (PUBLIC_PORTAL_PATHS.includes(pathname)) {
+      return NextResponse.next();
+    }
+
+    const token = request.cookies.get(CLIENT_COOKIE)?.value;
+    const session = await verifySession(token);
+    const clientSlug = pathname.slice(1).split("/")[0];
+
+    if (!session || session.kind !== "client" || session.slug !== clientSlug) {
+      const loginUrl = new URL("/portal-login", request.url);
+      return NextResponse.redirect(loginUrl);
+    }
+
+    return NextResponse.next();
   }
 
-  if (INTERNAL_ONLY_PATHS.some((pattern) => pattern.test(pathname))) {
-    return NextResponse.rewrite(new URL("/404", request.url));
+  // Internal (launchpad.arandmedia.com and the vercel.app fallback domain)
+  if (PUBLIC_INTERNAL_PATHS.includes(pathname)) {
+    return NextResponse.next();
+  }
+
+  const token = request.cookies.get(TEAM_COOKIE)?.value;
+  const session = await verifySession(token);
+
+  if (!session || session.kind !== "team") {
+    // Send a brand-new deployment (zero users yet) to /setup instead of a
+    // login page with nothing to log into. The setup route itself is the
+    // source of truth on whether an account already exists, so this is
+    // just a friendlier default landing spot, not a security decision.
+    const loginUrl = new URL("/login", request.url);
+    return NextResponse.redirect(loginUrl);
   }
 
   return NextResponse.next();

@@ -37,11 +37,12 @@ enum NotificationChannel {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String
-  role      UserRole @default(TEAM)
-  createdAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  email        String   @unique
+  name         String
+  role         UserRole @default(TEAM)
+  passwordHash String
+  createdAt    DateTime @default(now())
 
   assignedTasks Task[]
 }
@@ -53,8 +54,9 @@ model Client {
   email       String   @unique
   phone       String?
   // Portal login — client sees only projects linked to this id
-  slug        String   @unique // used in portal URL, e.g. /portal/acme-co
-  createdAt   DateTime @default(now())
+  slug         String   @unique // used in portal URL, e.g. /portal/acme-co
+  passwordHash String?  // set when the team creates portal access; null = no portal login yet
+  createdAt    DateTime @default(now())
 
   projects Project[]
 

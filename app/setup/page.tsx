@@ -1,0 +1,80 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+
+// First-run only: the API route behind this form refuses to create a
+// second account once one exists, so this page is safe to leave live --
+// after the first admin signs up it just becomes a permanent dead end.
+export default function SetupPage() {
+  const router = useRouter();
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    const res = await fetch("/api/auth/setup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email, password }),
+    });
+    setLoading(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setError(data.error || "Something went wrong.");
+      return;
+    }
+    router.push("/");
+    router.refresh();
+  }
+
+  return (
+    <main className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
+      <div className="w-full max-w-sm">
+        <h1 className="text-xl font-semibold text-slate-900 mb-1">Set up LaunchPAD</h1>
+        <p className="text-sm text-slate-500 mb-6">
+          Create the first admin account. This form disables itself after one exists.
+        </p>
+        <form onSubmit={handleSubmit} className="grid gap-3">
+          <input
+            className="border border-slate-300 rounded px-3 py-2 text-sm"
+            placeholder="Your name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+          />
+          <input
+            className="border border-slate-300 rounded px-3 py-2 text-sm"
+            placeholder="Email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+          />
+          <input
+            className="border border-slate-300 rounded px-3 py-2 text-sm"
+            placeholder="Password (min 8 characters)"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            minLength={8}
+            required
+          />
+          {error && <p className="text-sm text-red-600">{error}</p>}
+          <button
+            type="submit"
+            disabled={loading}
+            className="bg-slate-900 text-white rounded px-3 py-2 text-sm font-medium disabled:opacity-50"
+          >
+            {loading ? "Creating…" : "Create admin account"}
+          </button>
+        </form>
+      </div>
+    </main>
+  );
+}

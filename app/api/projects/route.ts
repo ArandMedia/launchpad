@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { requireTeamSession } from "@/lib/require-auth";
 
 // GET /api/projects?cursor=&limit=20
 // Cursor-paginated by design — never returns the full table, since this
@@ -29,6 +30,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireTeamSession();
+  if ("error" in auth) return auth.error;
+
   const data = await req.json();
 
   if (!data.name || !data.clientId) {

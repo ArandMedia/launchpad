@@ -1,0 +1,25 @@
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { requireTeamSession } from "@/lib/require-auth";
+
+export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+  const auth = await requireTeamSession();
+  if ("error" in auth) return auth.error;
+
+  const data = await req.json();
+  if (!data.title) {
+    return NextResponse.json({ error: "title is required" }, { status: 400 });
+  }
+
+  const milestone = await db.milestone.create({
+    data: {
+      title: data.title,
+      description: data.description || undefined,
+      targetDate: data.targetDate ? new Date(data.targetDate) : undefined,
+      clientVisible: data.clientVisible !== false,
+      projectId: params.id,
+    },
+  });
+
+  return NextResponse.json({ milestone }, { status: 201 });
+}

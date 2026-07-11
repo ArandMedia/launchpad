@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { notifyClient } from "@/lib/notifications";
+import { requireTeamSession } from "@/lib/require-auth";
 
 export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
   const project = await db.project.findUnique({
@@ -21,6 +22,9 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 // posted, this is the single choke point that fires the notification —
 // so internal edits and client comms never drift out of sync.
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+  const auth = await requireTeamSession();
+  if ("error" in auth) return auth.error;
+
   const data = await req.json();
 
   const project = await db.project.update({
