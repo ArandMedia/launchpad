@@ -24,7 +24,7 @@ between separate apps.
 
 4. Push the schema:
    ```
-   npx prisma migrate dev --name init
+   npx prisma db push
    ```
 
 5. Run locally:
