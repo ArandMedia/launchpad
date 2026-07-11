@@ -13,6 +13,12 @@ import { verifySession, TEAM_COOKIE, CLIENT_COOKIE } from "@/lib/session";
 const PUBLIC_INTERNAL_PATHS = ["/login", "/setup"];
 const PUBLIC_PORTAL_PATHS = ["/portal-login"];
 const INTERNAL_ONLY_PATHS = [/^\/projects(\/|$)/, /^\/api\/projects(\/|$)/, /^\/api\/clients(\/|$)/, /^\/api\/tasks(\/|$)/, /^\/api\/milestones(\/|$)/];
+// Document routes don't live under a client-slug path (they're keyed by
+// document id, not client), so they can't be gated by the slug-match check
+// below. The route handlers do their own auth (team session OR a client
+// session that owns the document's project), so middleware just lets these
+// through on the portal domain rather than incorrectly redirecting them.
+const PORTAL_API_PASSTHROUGH_PATHS = [/^\/api\/documents(\/|$)/];
 
 function isAsset(pathname: string) {
   return (
@@ -41,6 +47,10 @@ export async function middleware(request: NextRequest) {
     }
 
     if (PUBLIC_PORTAL_PATHS.includes(pathname)) {
+      return NextResponse.next();
+    }
+
+    if (PORTAL_API_PASSTHROUGH_PATHS.some((pattern) => pattern.test(pathname))) {
       return NextResponse.next();
     }
 

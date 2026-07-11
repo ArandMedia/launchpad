@@ -36,6 +36,13 @@ enum NotificationChannel {
   SMS
 }
 
+enum DocumentCategory {
+  CONTRACT
+  INVOICE
+  SOW
+  OTHER
+}
+
 model User {
   id           String   @id @default(cuid())
   email        String   @unique
@@ -78,6 +85,7 @@ model Project {
   tasks       Task[]
   milestones  Milestone[]
   updates     Update[]
+  documents   Document[]
 
   @@index([clientId])
   @@index([status])
@@ -128,6 +136,29 @@ model Update {
   createdAt     DateTime @default(now())
 
   @@index([projectId, createdAt])
+  @@index([projectId, clientVisible])
+}
+
+// Contracts, invoices, SOWs, and other project files. Files themselves live
+// in Vercel Blob storage -- this row is just the pointer + metadata, kept
+// strictly scoped to one project so a client's portal query (filtered by
+// clientVisible + projectId via the project relation) never crosses into
+// another project's or another client's files.
+model Document {
+  id            String           @id @default(cuid())
+  title         String
+  category      DocumentCategory @default(OTHER)
+  url           String
+  fileName      String
+  fileSize      Int
+  mimeType      String
+  clientVisible Boolean          @default(false)
+  projectId     String
+  project       Project          @relation(fields: [projectId], references: [id])
+  uploadedById  String?
+  createdAt     DateTime         @default(now())
+
+  @@index([projectId])
   @@index([projectId, clientVisible])
 }
 

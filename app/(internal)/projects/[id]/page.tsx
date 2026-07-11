@@ -11,6 +11,7 @@ export default async function ProjectDetail({ params }: { params: { id: string }
       tasks: { orderBy: { createdAt: "asc" } },
       milestones: { orderBy: { targetDate: "asc" } },
       updates: { orderBy: { createdAt: "desc" }, take: 20 },
+      documents: { orderBy: { createdAt: "desc" } },
     },
   });
 
@@ -33,6 +34,7 @@ export default async function ProjectDetail({ params }: { params: { id: string }
         tasks={project.tasks}
         milestones={project.milestones}
         updates={project.updates}
+        documents={project.documents}
       />
     </main>
   );

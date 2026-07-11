@@ -5,6 +5,13 @@ import PortalLogoutButton from "../../components/PortalLogoutButton";
 
 export const dynamic = "force-dynamic";
 
+const DOCUMENT_CATEGORY_LABELS: Record<string, string> = {
+  CONTRACT: "Contract",
+  INVOICE: "Invoice",
+  SOW: "SOW",
+  OTHER: "Other",
+};
+
 // The core scoping rule for the whole portal: a client's slug is the ONLY
 // way in, and every query below is filtered by that client's id. A client
 // can never see another client's data, no matter how many hundreds of
@@ -28,6 +35,10 @@ export default async function ClientPortal({ params }: { params: { clientSlug: s
             where: { clientVisible: true },
             orderBy: { createdAt: "desc" },
             take: 10,
+          },
+          documents: {
+            where: { clientVisible: true },
+            orderBy: { createdAt: "desc" },
           },
         },
       },
@@ -91,6 +102,29 @@ export default async function ClientPortal({ params }: { params: { clientSlug: s
                   ))}
                   {project.updates.length === 0 && (
                     <p className="text-sm text-slate-400">No updates posted yet.</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="mt-5">
+                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+                  Documents
+                </h3>
+                <div className="grid gap-2">
+                  {project.documents.map((d) => (
+                    <a
+                      key={d.id}
+                      href={`/api/documents/${d.id}/download`}
+                      className="flex items-center justify-between text-sm border border-slate-200 rounded px-3 py-2 hover:border-blue-300 transition-colors"
+                    >
+                      <span className="text-slate-700 truncate">{d.title}</span>
+                      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 shrink-0 ml-2">
+                        {DOCUMENT_CATEGORY_LABELS[d.category] || d.category}
+                      </span>
+                    </a>
+                  ))}
+                  {project.documents.length === 0 && (
+                    <p className="text-sm text-slate-400">No documents shared yet.</p>
                   )}
                 </div>
               </div>

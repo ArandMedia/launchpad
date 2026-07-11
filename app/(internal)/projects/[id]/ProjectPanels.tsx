@@ -12,19 +12,51 @@ type Milestone = {
   clientVisible: boolean;
 };
 type Update = { id: string; body: string; clientVisible: boolean; createdAt: Date };
+type Document = {
+  id: string;
+  title: string;
+  category: string;
+  url: string;
+  fileName: string;
+  fileSize: number;
+  clientVisible: boolean;
+  createdAt: Date;
+};
+
+const CATEGORY_LABELS: Record<string, string> = {
+  CONTRACT: "Contract",
+  INVOICE: "Invoice",
+  SOW: "SOW",
+  OTHER: "Other",
+};
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 export default function ProjectPanels({
   projectId,
   tasks,
   milestones,
   updates,
+  documents,
 }: {
   projectId: string;
   tasks: Task[];
   milestones: Milestone[];
   updates: Update[];
+  documents: Document[];
 }) {
   const router = useRouter();
+
+  const [docTitle, setDocTitle] = useState("");
+  const [docCategory, setDocCategory] = useState("OTHER");
+  const [docFile, setDocFile] = useState<File | null>(null);
+  const [docVisible, setDocVisible] = useState(false);
+  const [docBusy, setDocBusy] = useState(false);
+  const [docError, setDocError] = useState<string | null>(null);
 
   const [taskTitle, setTaskTitle] = useState("");
   const [taskBusy, setTaskBusy] = useState(false);
@@ -99,6 +131,56 @@ export default function ProjectPanels({
     setUpdateBody("");
     setUpdateVisible(false);
     setUpdateBusy(false);
+    router.refresh();
+  }
+
+  async function uploadDocument(e: React.FormEvent) {
+    e.preventDefault();
+    setDocError(null);
+    if (!docFile) {
+      setDocError("Choose a file to upload.");
+      return;
+    }
+    if (!docTitle.trim()) {
+      setDocError("Give the document a title.");
+      return;
+    }
+    setDocBusy(true);
+    const formData = new FormData();
+    formData.append("file", docFile);
+    formData.append("title", docTitle);
+    formData.append("category", docCategory);
+    formData.append("clientVisible", String(docVisible));
+
+    const res = await fetch(`/api/projects/${projectId}/documents`, {
+      method: "POST",
+      body: formData,
+    });
+    setDocBusy(false);
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      setDocError(data.error || "Upload failed.");
+      return;
+    }
+    setDocTitle("");
+    setDocCategory("OTHER");
+    setDocFile(null);
+    setDocVisible(false);
+    router.refresh();
+  }
+
+  async function toggleDocVisibility(doc: Document) {
+    await fetch(`/api/documents/${doc.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ clientVisible: !doc.clientVisible }),
+    });
+    router.refresh();
+  }
+
+  async function deleteDocument(doc: Document) {
+    if (!confirm(`Delete "${doc.title}"? This can't be undone.`)) return;
+    await fetch(`/api/documents/${doc.id}`, { method: "DELETE" });
     router.refresh();
   }
 
@@ -230,6 +312,102 @@ export default function ProjectPanels({
             className="bg-slate-900 text-white rounded px-3 py-1.5 text-sm w-fit disabled:opacity-50"
           >
             Post update
+          </button>
+        </form>
+      </section>
+
+      <section className="mt-8">
+        <h2 className="text-sm font-semibold text-slate-700 mb-2 uppercase tracking-wide">
+          Documents
+        </h2>
+        <p className="text-xs text-slate-400 mb-3">
+          Contracts, invoices, SOWs, and other files for this project only. Hidden from the
+          client until you mark them visible.
+        </p>
+        <div className="grid gap-2 mb-4">
+          {documents.map((d) => (
+            <div
+              key={d.id}
+              className="flex items-center justify-between border border-slate-200 rounded px-4 py-2.5 text-sm"
+            >
+              <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">
+                    {CATEGORY_LABELS[d.category] || d.category}
+                  </span>
+                  <a
+                    href={`/api/documents/${d.id}/download`}
+                    className="font-medium text-slate-900 hover:underline truncate"
+                  >
+                    {d.title}
+                  </a>
+                </div>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {d.fileName} · {formatBytes(d.fileSize)} ·{" "}
+                  {new Date(d.createdAt).toLocaleDateString()}
+                </p>
+              </div>
+              <div className="flex items-center gap-3 shrink-0 ml-3">
+                <button
+                  onClick={() => toggleDocVisibility(d)}
+                  className={`text-xs font-medium ${
+                    d.clientVisible ? "text-blue-600" : "text-slate-400"
+                  } hover:underline`}
+                >
+                  {d.clientVisible ? "👁 client-visible" : "internal only"}
+                </button>
+                <button
+                  onClick={() => deleteDocument(d)}
+                  className="text-xs text-red-500 hover:underline"
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+          {documents.length === 0 && (
+            <p className="text-sm text-slate-400">No documents uploaded yet.</p>
+          )}
+        </div>
+        <form onSubmit={uploadDocument} className="grid gap-2 border border-slate-200 rounded-lg p-4">
+          <div className="flex gap-2">
+            <input
+              className="border border-slate-300 rounded px-3 py-1.5 text-sm flex-1"
+              placeholder="Document title (e.g. Master Services Agreement)"
+              value={docTitle}
+              onChange={(e) => setDocTitle(e.target.value)}
+            />
+            <select
+              className="border border-slate-300 rounded px-3 py-1.5 text-sm"
+              value={docCategory}
+              onChange={(e) => setDocCategory(e.target.value)}
+            >
+              <option value="CONTRACT">Contract</option>
+              <option value="INVOICE">Invoice</option>
+              <option value="SOW">SOW</option>
+              <option value="OTHER">Other</option>
+            </select>
+          </div>
+          <input
+            type="file"
+            className="text-sm"
+            onChange={(e) => setDocFile(e.target.files?.[0] || null)}
+          />
+          <label className="flex items-center gap-2 text-xs text-slate-500">
+            <input
+              type="checkbox"
+              checked={docVisible}
+              onChange={(e) => setDocVisible(e.target.checked)}
+            />
+            Visible to client
+          </label>
+          {docError && <p className="text-xs text-red-500">{docError}</p>}
+          <button
+            type="submit"
+            disabled={docBusy}
+            className="bg-slate-900 text-white rounded px-3 py-1.5 text-sm w-fit disabled:opacity-50"
+          >
+            {docBusy ? "Uploading…" : "Upload document"}
           </button>
         </form>
       </section>
