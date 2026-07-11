@@ -57,7 +57,10 @@ export default function NewProjectPage() {
   if (!clientsLoading && clients.length === 0) {
     return (
       <main className="p-8 max-w-lg mx-auto">
-        <h1 className="text-xl font-semibold text-slate-900 mb-2">New project</h1>
+        <Link href="/" className="text-sm text-slate-400 hover:text-slate-700">
+          ← Back to projects
+        </Link>
+        <h1 className="text-xl font-semibold text-slate-900 mb-2 mt-2">New project</h1>
         <p className="text-sm text-slate-500 mb-4">
           You need a client before you can create a project.
         </p>
@@ -73,7 +76,10 @@ export default function NewProjectPage() {
 
   return (
     <main className="p-8 max-w-lg mx-auto">
-      <h1 className="text-xl font-semibold text-slate-900 mb-6">New project</h1>
+      <Link href="/" className="text-sm text-slate-400 hover:text-slate-700">
+        ← Back to projects
+      </Link>
+      <h1 className="text-xl font-semibold text-slate-900 mb-6 mt-2">New project</h1>
       <form onSubmit={handleSubmit} className="grid gap-3">
         <input
           className="border border-slate-300 rounded px-3 py-2 text-sm"

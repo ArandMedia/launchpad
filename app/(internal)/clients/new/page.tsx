@@ -35,7 +35,10 @@ export default function NewClientPage() {
   if (result) {
     return (
       <main className="p-8 max-w-lg mx-auto">
-        <h1 className="text-xl font-semibold text-slate-900 mb-4">Client created</h1>
+        <Link href="/clients" className="text-sm text-slate-400 hover:text-slate-700">
+          ← Back to clients
+        </Link>
+        <h1 className="text-xl font-semibold text-slate-900 mb-4 mt-2">Client created</h1>
         <div className="bg-white border border-slate-200 rounded-lg p-5 grid gap-2 text-sm">
           <p>
             Portal URL:{" "}
@@ -62,7 +65,10 @@ export default function NewClientPage() {
 
   return (
     <main className="p-8 max-w-lg mx-auto">
-      <h1 className="text-xl font-semibold text-slate-900 mb-6">New client</h1>
+      <Link href="/clients" className="text-sm text-slate-400 hover:text-slate-700">
+        ← Back to clients
+      </Link>
+      <h1 className="text-xl font-semibold text-slate-900 mb-6 mt-2">New client</h1>
       <form onSubmit={handleSubmit} className="grid gap-3">
         <input
           className="border border-slate-300 rounded px-3 py-2 text-sm"

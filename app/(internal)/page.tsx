@@ -1,6 +1,5 @@
 import { db } from "@/lib/db";
 import Link from "next/link";
-import LogoutButton from "../components/LogoutButton";
 
 export const dynamic = "force-dynamic";
 
@@ -27,21 +26,7 @@ export default async function InternalDashboard() {
 
   return (
     <main className="p-8 max-w-6xl mx-auto">
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-2xl font-semibold text-slate-900">LaunchPAD</h1>
-        <div className="flex items-center gap-4">
-          <Link href="/clients/new" className="text-sm text-slate-500 hover:text-slate-900">
-            + New client
-          </Link>
-          <Link
-            href="/projects/new"
-            className="bg-slate-900 text-white rounded px-3 py-1.5 text-sm font-medium"
-          >
-            + New project
-          </Link>
-          <LogoutButton />
-        </div>
-      </div>
+      <h1 className="text-xl font-semibold text-slate-900 mb-6">Projects</h1>
 
       <div className="grid gap-3">
         {projects.map((p) => (
