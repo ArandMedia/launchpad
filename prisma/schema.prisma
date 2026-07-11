@@ -64,6 +64,7 @@ model Client {
   slug         String   @unique // used in portal URL, e.g. /portal/acme-co
   passwordHash String?  // set when the team creates portal access; null = no portal login yet
   createdAt    DateTime @default(now())
+  archivedAt   DateTime? // soft-archived clients drop out of default lists but keep their history
 
   projects Project[]
 
@@ -81,6 +82,7 @@ model Project {
   client      Client        @relation(fields: [clientId], references: [id])
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
+  archivedAt  DateTime? // soft-archived projects drop out of default lists but keep their history
 
   tasks       Task[]
   milestones  Milestone[]

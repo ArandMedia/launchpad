@@ -93,6 +93,13 @@ export default function ProjectPanels({
     router.refresh();
   }
 
+  async function deleteTask(task: Task, e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!confirm(`Delete task "${task.title}"?`)) return;
+    await fetch(`/api/tasks/${task.id}`, { method: "DELETE" });
+    router.refresh();
+  }
+
   async function addMilestone(e: React.FormEvent) {
     e.preventDefault();
     if (!milestoneTitle.trim()) return;
@@ -117,6 +124,13 @@ export default function ProjectPanels({
     router.refresh();
   }
 
+  async function deleteMilestone(milestone: Milestone, e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!confirm(`Delete milestone "${milestone.title}"?`)) return;
+    await fetch(`/api/milestones/${milestone.id}`, { method: "DELETE" });
+    router.refresh();
+  }
+
   async function postUpdate(e: React.FormEvent) {
     e.preventDefault();
     if (!updateBody.trim()) return;
@@ -131,6 +145,12 @@ export default function ProjectPanels({
     setUpdateBody("");
     setUpdateVisible(false);
     setUpdateBusy(false);
+    router.refresh();
+  }
+
+  async function deleteUpdate(update: Update) {
+    if (!confirm("Delete this update? This does not unsend any notification email already sent.")) return;
+    await fetch(`/api/updates/${update.id}`, { method: "DELETE" });
     router.refresh();
   }
 
@@ -192,16 +212,24 @@ export default function ProjectPanels({
         </h2>
         <div className="grid gap-2 mb-3">
           {tasks.map((t) => (
-            <button
+            <div
               key={t.id}
               onClick={() => toggleTask(t)}
-              className="flex justify-between border border-slate-200 rounded px-4 py-2 text-sm text-left hover:border-slate-400 transition-colors"
+              className="flex justify-between items-center border border-slate-200 rounded px-4 py-2 text-sm cursor-pointer hover:border-slate-400 transition-colors"
             >
               <span className={t.status === "DONE" ? "line-through text-slate-400" : ""}>
                 {t.title}
               </span>
-              <span className="text-slate-400">{t.status}</span>
-            </button>
+              <span className="flex items-center gap-3">
+                <span className="text-slate-400">{t.status}</span>
+                <button
+                  onClick={(e) => deleteTask(t, e)}
+                  className="text-xs text-red-500 hover:underline"
+                >
+                  Delete
+                </button>
+              </span>
+            </div>
           ))}
           {tasks.length === 0 && <p className="text-sm text-slate-400">No tasks yet.</p>}
         </div>
@@ -228,21 +256,29 @@ export default function ProjectPanels({
         </h2>
         <div className="grid gap-2 mb-3">
           {milestones.map((m) => (
-            <button
+            <div
               key={m.id}
               onClick={() => toggleMilestone(m)}
-              className="flex justify-between border border-slate-200 rounded px-4 py-2 text-sm text-left hover:border-slate-400 transition-colors"
+              className="flex justify-between items-center border border-slate-200 rounded px-4 py-2 text-sm cursor-pointer hover:border-slate-400 transition-colors"
             >
               <span className={m.completedAt ? "line-through text-slate-400" : ""}>{m.title}</span>
-              <span className="text-slate-400">
-                {m.completedAt
-                  ? "Complete"
-                  : m.targetDate
-                  ? new Date(m.targetDate).toLocaleDateString()
-                  : "TBD"}
-                {m.clientVisible ? " · visible to client" : ""}
+              <span className="flex items-center gap-3">
+                <span className="text-slate-400">
+                  {m.completedAt
+                    ? "Complete"
+                    : m.targetDate
+                    ? new Date(m.targetDate).toLocaleDateString()
+                    : "TBD"}
+                  {m.clientVisible ? " · visible to client" : ""}
+                </span>
+                <button
+                  onClick={(e) => deleteMilestone(m, e)}
+                  className="text-xs text-red-500 hover:underline"
+                >
+                  Delete
+                </button>
               </span>
-            </button>
+            </div>
           ))}
           {milestones.length === 0 && (
             <p className="text-sm text-slate-400">No milestones yet.</p>
@@ -281,7 +317,15 @@ export default function ProjectPanels({
         <div className="grid gap-2 mb-3">
           {updates.map((u) => (
             <div key={u.id} className="border border-slate-200 rounded px-4 py-3 text-sm">
-              <p>{u.body}</p>
+              <div className="flex items-start justify-between gap-3">
+                <p>{u.body}</p>
+                <button
+                  onClick={() => deleteUpdate(u)}
+                  className="text-xs text-red-500 hover:underline shrink-0"
+                >
+                  Delete
+                </button>
+              </div>
               <p className="text-xs text-slate-400 mt-1">
                 {new Date(u.createdAt).toLocaleString()}{" "}
                 {u.clientVisible ? "· 👁 client-visible" : "· internal only"}

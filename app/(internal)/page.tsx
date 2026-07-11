@@ -14,9 +14,16 @@ const statusColor: Record<string, string> = {
 // Server component — fetches first page directly. The client-side
 // dashboard can later swap to SWR + the /api/projects cursor endpoint
 // for infinite scroll once volume grows.
-export default async function InternalDashboard() {
+export default async function InternalDashboard({
+  searchParams,
+}: {
+  searchParams: { archived?: string };
+}) {
+  const showArchived = searchParams.archived === "1";
+
   const projects = await db.project.findMany({
     take: 50,
+    where: showArchived ? { archivedAt: { not: null } } : { archivedAt: null },
     orderBy: { updatedAt: "desc" },
     include: {
       client: { select: { name: true, companyName: true } },
@@ -26,7 +33,17 @@ export default async function InternalDashboard() {
 
   return (
     <main className="p-8 max-w-6xl mx-auto">
-      <h1 className="text-xl font-semibold text-slate-900 mb-6">Projects</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-xl font-semibold text-slate-900">
+          {showArchived ? "Archived projects" : "Projects"}
+        </h1>
+        <Link
+          href={showArchived ? "/" : "/?archived=1"}
+          className="text-sm text-slate-400 hover:text-slate-700"
+        >
+          {showArchived ? "← Back to active projects" : "View archived →"}
+        </Link>
+      </div>
 
       <div className="grid gap-3">
         {projects.map((p) => (
@@ -50,12 +67,18 @@ export default async function InternalDashboard() {
           </Link>
         ))}
 
-        {projects.length === 0 && (
+        {projects.length === 0 && !showArchived && (
           <div className="text-slate-400 text-sm py-12 text-center border border-dashed border-slate-200 rounded-lg">
             No projects yet.{" "}
             <Link href="/projects/new" className="underline">
               Create your first one →
             </Link>
+          </div>
+        )}
+
+        {projects.length === 0 && showArchived && (
+          <div className="text-slate-400 text-sm py-12 text-center border border-dashed border-slate-200 rounded-lg">
+            No archived projects.
           </div>
         )}
       </div>

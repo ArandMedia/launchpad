@@ -18,3 +18,11 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
   return NextResponse.json({ task });
 }
+
+export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+  const auth = await requireTeamSession();
+  if ("error" in auth) return auth.error;
+
+  await db.task.delete({ where: { id: params.id } });
+  return NextResponse.json({ ok: true });
+}

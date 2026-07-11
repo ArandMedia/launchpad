@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import ProjectPanels from "./ProjectPanels";
+import ProjectHeader from "./ProjectHeader";
 
 export default async function ProjectDetail({ params }: { params: { id: string } }) {
   const project = await db.project.findUnique({
@@ -22,12 +23,10 @@ export default async function ProjectDetail({ params }: { params: { id: string }
       <Link href="/" className="text-sm text-slate-400 hover:text-slate-700">
         ← Back to projects
       </Link>
-      <div className="mb-6 mt-2">
-        <h1 className="text-2xl font-semibold text-slate-900">{project.name}</h1>
-        <p className="text-slate-500 text-sm mt-1">
-          {project.client.companyName || project.client.name} · {project.status}
-        </p>
-      </div>
+      <ProjectHeader
+        project={project}
+        clientLabel={project.client.companyName || project.client.name}
+      />
 
       <ProjectPanels
         projectId={project.id}
