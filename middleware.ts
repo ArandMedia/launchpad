@@ -39,7 +39,16 @@ export async function middleware(request: NextRequest) {
 
   if (isPortalDomain) {
     if (pathname === "/") {
-      return NextResponse.redirect(new URL("https://launchpad.arandmedia.com/"));
+      // Root of the client-facing domain: send an already-logged-in client
+      // straight to their own portal page, everyone else to the portal
+      // login. This should never land on the internal team dashboard --
+      // that's a different domain entirely.
+      const existingToken = request.cookies.get(CLIENT_COOKIE)?.value;
+      const existingSession = await verifySession(existingToken);
+      if (existingSession && existingSession.kind === "client") {
+        return NextResponse.redirect(new URL(`/${existingSession.slug}`, request.url));
+      }
+      return NextResponse.redirect(new URL("/portal-login", request.url));
     }
 
     if (INTERNAL_ONLY_PATHS.some((pattern) => pattern.test(pathname))) {
