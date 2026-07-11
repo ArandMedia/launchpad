@@ -2,15 +2,9 @@ import { db } from "@/lib/db";
 import { notFound, redirect } from "next/navigation";
 import { getClientSession } from "@/lib/current-session";
 import PortalLogoutButton from "../../components/PortalLogoutButton";
+import PortalProjectList from "./PortalProjectList";
 
 export const dynamic = "force-dynamic";
-
-const DOCUMENT_CATEGORY_LABELS: Record<string, string> = {
-  CONTRACT: "Contract",
-  INVOICE: "Invoice",
-  SOW: "SOW",
-  OTHER: "Other",
-};
 
 // The core scoping rule for the whole portal: a client's slug is the ONLY
 // way in, and every query below is filtered by that client's id. A client
@@ -29,6 +23,8 @@ export default async function ClientPortal({ params }: { params: { clientSlug: s
     where: { slug: params.clientSlug },
     include: {
       projects: {
+        where: { archivedAt: null },
+        orderBy: { updatedAt: "desc" },
         include: {
           milestones: { orderBy: { targetDate: "asc" } },
           updates: {
@@ -58,83 +54,7 @@ export default async function ClientPortal({ params }: { params: { clientSlug: s
       </header>
 
       <div className="max-w-3xl mx-auto p-8 grid gap-8">
-        {client.projects.map((project) => {
-          const nextMilestone = project.milestones.find((m) => !m.completedAt);
-          const doneCount = project.milestones.filter((m) => m.completedAt).length;
-
-          return (
-            <div key={project.id} className="bg-white border border-slate-200 rounded-xl p-6">
-              <div className="flex items-center justify-between mb-1">
-                <h2 className="text-lg font-medium text-slate-900">{project.name}</h2>
-                <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-blue-50 text-blue-700">
-                  {project.status.replace("_", " ")}
-                </span>
-              </div>
-
-              {project.milestones.length > 0 && (
-                <div className="mt-4">
-                  <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-blue-500 rounded-full transition-all"
-                      style={{
-                        width: `${(doneCount / project.milestones.length) * 100}%`,
-                      }}
-                    />
-                  </div>
-                  <p className="text-xs text-slate-500 mt-2">
-                    {nextMilestone
-                      ? `Next: ${nextMilestone.title}`
-                      : "All milestones complete 🎉"}
-                  </p>
-                </div>
-              )}
-
-              <div className="mt-5">
-                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-                  Latest updates
-                </h3>
-                <div className="grid gap-2">
-                  {project.updates.map((u) => (
-                    <div key={u.id} className="text-sm border-l-2 border-blue-200 pl-3 py-1">
-                      <p className="text-slate-700">{u.body}</p>
-                      <p className="text-xs text-slate-400">{u.createdAt.toLocaleDateString()}</p>
-                    </div>
-                  ))}
-                  {project.updates.length === 0 && (
-                    <p className="text-sm text-slate-400">No updates posted yet.</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="mt-5">
-                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-                  Documents
-                </h3>
-                <div className="grid gap-2">
-                  {project.documents.map((d) => (
-                    <a
-                      key={d.id}
-                      href={`/api/documents/${d.id}/download`}
-                      className="flex items-center justify-between text-sm border border-slate-200 rounded px-3 py-2 hover:border-blue-300 transition-colors"
-                    >
-                      <span className="text-slate-700 truncate">{d.title}</span>
-                      <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 shrink-0 ml-2">
-                        {DOCUMENT_CATEGORY_LABELS[d.category] || d.category}
-                      </span>
-                    </a>
-                  ))}
-                  {project.documents.length === 0 && (
-                    <p className="text-sm text-slate-400">No documents shared yet.</p>
-                  )}
-                </div>
-              </div>
-            </div>
-          );
-        })}
-
-        {client.projects.length === 0 && (
-          <p className="text-center text-slate-400 py-12">No active projects yet.</p>
-        )}
+        <PortalProjectList projects={client.projects} />
       </div>
     </main>
   );

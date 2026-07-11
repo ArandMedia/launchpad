@@ -75,6 +75,14 @@ model Project {
   id          String        @id @default(cuid())
   name        String
   description String?
+  // Scope: the working brief the whole project hangs off. Kept as three
+  // separate fields (not one blob) so both the internal dashboard and the
+  // client portal can render "what's the problem / what are we building /
+  // what does done look like" as a clean, scannable summary rather than a
+  // wall of text.
+  problem         String?
+  solution        String?
+  desiredOutcome  String?
   status      ProjectStatus @default(DISCOVERY)
   startDate   DateTime?
   targetDate  DateTime?

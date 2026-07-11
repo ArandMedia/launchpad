@@ -10,6 +10,9 @@ type Project = {
   id: string;
   name: string;
   description: string | null;
+  problem: string | null;
+  solution: string | null;
+  desiredOutcome: string | null;
   status: string;
   startDate: Date | null;
   targetDate: Date | null;
@@ -33,6 +36,9 @@ export default function ProjectHeader({
   const [busy, setBusy] = useState(false);
   const [name, setName] = useState(project.name);
   const [description, setDescription] = useState(project.description || "");
+  const [problem, setProblem] = useState(project.problem || "");
+  const [solution, setSolution] = useState(project.solution || "");
+  const [desiredOutcome, setDesiredOutcome] = useState(project.desiredOutcome || "");
   const [status, setStatus] = useState(project.status);
   const [startDate, setStartDate] = useState(toDateInput(project.startDate));
   const [targetDate, setTargetDate] = useState(toDateInput(project.targetDate));
@@ -46,6 +52,9 @@ export default function ProjectHeader({
       body: JSON.stringify({
         name,
         description,
+        problem,
+        solution,
+        desiredOutcome,
         status,
         startDate: startDate || null,
         targetDate: targetDate || null,
@@ -97,6 +106,43 @@ export default function ProjectHeader({
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
+
+        <div className="border border-slate-200 rounded p-3 grid gap-2 bg-slate-50">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+            Scope (shown to the client too)
+          </p>
+          <label className="text-xs text-slate-500">
+            Problem
+            <textarea
+              className="border border-slate-300 rounded px-3 py-1.5 text-sm w-full mt-1"
+              placeholder="What problem are we solving?"
+              rows={2}
+              value={problem}
+              onChange={(e) => setProblem(e.target.value)}
+            />
+          </label>
+          <label className="text-xs text-slate-500">
+            Solution
+            <textarea
+              className="border border-slate-300 rounded px-3 py-1.5 text-sm w-full mt-1"
+              placeholder="What are we building?"
+              rows={2}
+              value={solution}
+              onChange={(e) => setSolution(e.target.value)}
+            />
+          </label>
+          <label className="text-xs text-slate-500">
+            Desired outcome
+            <textarea
+              className="border border-slate-300 rounded px-3 py-1.5 text-sm w-full mt-1"
+              placeholder="What does done look like?"
+              rows={2}
+              value={desiredOutcome}
+              onChange={(e) => setDesiredOutcome(e.target.value)}
+            />
+          </label>
+        </div>
+
         <div className="flex gap-2">
           <select
             className="border border-slate-300 rounded px-3 py-1.5 text-sm"
@@ -159,6 +205,34 @@ export default function ProjectHeader({
           </p>
           {project.description && (
             <p className="text-slate-600 text-sm mt-2 max-w-2xl">{project.description}</p>
+          )}
+          {(project.problem || project.solution || project.desiredOutcome) && (
+            <div className="grid gap-2 mt-4 max-w-2xl">
+              {project.problem && (
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    Problem
+                  </p>
+                  <p className="text-sm text-slate-700 mt-0.5">{project.problem}</p>
+                </div>
+              )}
+              {project.solution && (
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    Solution
+                  </p>
+                  <p className="text-sm text-slate-700 mt-0.5">{project.solution}</p>
+                </div>
+              )}
+              {project.desiredOutcome && (
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    Desired outcome
+                  </p>
+                  <p className="text-sm text-slate-700 mt-0.5">{project.desiredOutcome}</p>
+                </div>
+              )}
+            </div>
           )}
         </div>
         <div className="flex items-center gap-3 shrink-0">

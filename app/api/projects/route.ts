@@ -43,6 +43,9 @@ export async function POST(req: NextRequest) {
     data: {
       name: data.name,
       description: data.description,
+      problem: data.problem || undefined,
+      solution: data.solution || undefined,
+      desiredOutcome: data.desiredOutcome || undefined,
       clientId: data.clientId,
       status: data.status || "DISCOVERY",
       startDate: data.startDate ? new Date(data.startDate) : undefined,

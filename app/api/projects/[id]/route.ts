@@ -38,6 +38,9 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       ...(data.status ? { status: data.status } : {}),
       ...(data.name ? { name: data.name } : {}),
       ...(data.description !== undefined ? { description: data.description || null } : {}),
+      ...(data.problem !== undefined ? { problem: data.problem || null } : {}),
+      ...(data.solution !== undefined ? { solution: data.solution || null } : {}),
+      ...(data.desiredOutcome !== undefined ? { desiredOutcome: data.desiredOutcome || null } : {}),
       ...(data.startDate !== undefined
         ? { startDate: data.startDate ? new Date(data.startDate) : null }
         : {}),

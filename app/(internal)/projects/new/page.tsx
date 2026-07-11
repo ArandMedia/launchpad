@@ -13,6 +13,9 @@ export default function NewProjectPage() {
   const [name, setName] = useState("");
   const [clientId, setClientId] = useState("");
   const [description, setDescription] = useState("");
+  const [problem, setProblem] = useState("");
+  const [solution, setSolution] = useState("");
+  const [desiredOutcome, setDesiredOutcome] = useState("");
   const [status, setStatus] = useState("DISCOVERY");
   const [startDate, setStartDate] = useState("");
   const [targetDate, setTargetDate] = useState("");
@@ -40,6 +43,9 @@ export default function NewProjectPage() {
         name,
         clientId,
         description: description || undefined,
+        problem: problem || undefined,
+        solution: solution || undefined,
+        desiredOutcome: desiredOutcome || undefined,
         status,
         startDate: startDate || undefined,
         targetDate: targetDate || undefined,
@@ -107,6 +113,43 @@ export default function NewProjectPage() {
           onChange={(e) => setDescription(e.target.value)}
           rows={3}
         />
+
+        <div className="border border-slate-200 rounded-lg p-3 grid gap-2">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+            Scope (optional, shown to the client too)
+          </p>
+          <label className="text-xs text-slate-500">
+            Problem
+            <textarea
+              className="border border-slate-300 rounded px-3 py-2 text-sm w-full mt-1"
+              placeholder="What problem are we solving?"
+              value={problem}
+              onChange={(e) => setProblem(e.target.value)}
+              rows={2}
+            />
+          </label>
+          <label className="text-xs text-slate-500">
+            Solution
+            <textarea
+              className="border border-slate-300 rounded px-3 py-2 text-sm w-full mt-1"
+              placeholder="What are we building?"
+              value={solution}
+              onChange={(e) => setSolution(e.target.value)}
+              rows={2}
+            />
+          </label>
+          <label className="text-xs text-slate-500">
+            Desired outcome
+            <textarea
+              className="border border-slate-300 rounded px-3 py-2 text-sm w-full mt-1"
+              placeholder="What does done look like?"
+              value={desiredOutcome}
+              onChange={(e) => setDesiredOutcome(e.target.value)}
+              rows={2}
+            />
+          </label>
+        </div>
+
         <label className="text-xs text-slate-500">
           Status
           <select
