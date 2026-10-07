@@ -20,6 +20,14 @@ export default function InternalLayout({ children }: { children: React.ReactNode
             <Link href="/clients" className="text-sm text-slate-500 hover:text-slate-900">
               Clients
             </Link>
+            {/* Plain <a>: the reference is a standalone document served by a
+                route handler, not a page inside this layout. */}
+            <a
+              href="/reference/creative-engineering"
+              className="text-sm text-slate-500 hover:text-slate-900"
+            >
+              Creative Engineering
+            </a>
           </nav>
           <div className="flex items-center gap-4">
             <Link href="/clients/new" className="text-sm text-slate-500 hover:text-slate-900">

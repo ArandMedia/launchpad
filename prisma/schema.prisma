@@ -183,3 +183,14 @@ model NotificationLog {
 
   @@index([projectId])
 }
+
+// Private reference material (study notes, playbooks) shown inside the
+// internal app at /reference/[slug]. The page body lives here rather than
+// in the codebase so the content stays out of the public repository.
+// Admin-only: see app/reference/[slug]/route.ts.
+model ReferenceDoc {
+  slug      String   @id
+  title     String
+  html      String
+  updatedAt DateTime @updatedAt
+}

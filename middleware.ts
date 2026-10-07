@@ -12,7 +12,7 @@ import { verifySession, TEAM_COOKIE, CLIENT_COOKIE } from "@/lib/session";
 
 const PUBLIC_INTERNAL_PATHS = ["/login", "/setup"];
 const PUBLIC_PORTAL_PATHS = ["/portal-login"];
-const INTERNAL_ONLY_PATHS = [/^\/projects(\/|$)/, /^\/clients(\/|$)/, /^\/api\/projects(\/|$)/, /^\/api\/clients(\/|$)/, /^\/api\/tasks(\/|$)/, /^\/api\/milestones(\/|$)/, /^\/api\/updates(\/|$)/];
+const INTERNAL_ONLY_PATHS = [/^\/projects(\/|$)/, /^\/clients(\/|$)/, /^\/api\/projects(\/|$)/, /^\/api\/clients(\/|$)/, /^\/api\/tasks(\/|$)/, /^\/api\/milestones(\/|$)/, /^\/api\/updates(\/|$)/, /^\/reference(\/|$)/, /^\/api\/reference(\/|$)/];
 // Document routes don't live under a client-slug path (they're keyed by
 // document id, not client), so they can't be gated by the slug-match check
 // below. The route handlers do their own auth (team session OR a client
