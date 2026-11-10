@@ -1,4 +1,5 @@
-import { SignJWT, jwtVerify } from "jose";
+import { SignJWT } from "jose/jwt/sign";
+import { jwtVerify } from "jose/jwt/verify";
 
 // Edge-safe session helpers (used by middleware AND API routes). No bcrypt
 // here on purpose -- bcrypt isn't edge-compatible, so password hashing lives

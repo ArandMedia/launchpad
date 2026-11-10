@@ -199,14 +199,15 @@ model ReferenceDoc {
 // LifeOS data is isolated by the authenticated owner's user ID.
 // No sensitive health measurements are stored in this first iteration.
 model LifeOSGoal {
-  id        String   @id @default(cuid())
-  ownerId   String
-  title     String
-  horizon   String
-  parentId  String?
-  done      Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id          String    @id @default(cuid())
+  ownerId     String
+  title       String
+  horizon     String
+  parentId    String?
+  done        Boolean   @default(false)
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([ownerId, createdAt])
   @@index([ownerId, parentId])

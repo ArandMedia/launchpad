@@ -3,6 +3,7 @@ import Workspace from "./workspace";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { TEAM_COOKIE, verifySession } from "@/lib/session";
+import { isLifeOSOwner } from "@/lib/lifeos-auth";
 
 const horizons = [
   ["Lifetime", "Operation OMNIS and personal purpose"],
@@ -28,7 +29,7 @@ export default async function LifeOSPage() {
   const session = await verifySession(token);
   if (!session || session.kind !== "team") redirect("/login");
   // Fail closed unless this exact owner account is configured.
-  if (!process.env.LIFEOS_OWNER_USER_ID || session.userId !== process.env.LIFEOS_OWNER_USER_ID) redirect("/");
+  if (!isLifeOSOwner(session)) redirect("/");
 
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-8 text-slate-100 sm:px-8">
@@ -39,7 +40,7 @@ export default async function LifeOSPage() {
             <h1 className="mt-2 text-3xl font-bold">Your Command Center</h1>
             <p className="mt-2 text-slate-400">Plan. Execute. Reflect. Adapt.</p>
           </div>
-          <Link href="/" className="rounded-lg border border-slate-600 px-4 py-2 text-sm hover:bg-slate-800">Back to LaunchPAD</Link>
+          <Link href="/" className="inline-flex min-h-11 items-center rounded-lg border border-slate-600 px-4 py-2 text-sm hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-300">Back to LaunchPAD</Link>
         </div>
 
         <section className="mt-8 rounded-2xl border border-teal-800 bg-slate-900 p-6">
@@ -68,7 +69,7 @@ export default async function LifeOSPage() {
                 <p className="mt-1 text-sm text-slate-400">{description}</p>
               </div>
             ))}
-            <a href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer" className="block rounded-xl bg-teal-400 px-5 py-3 text-center font-semibold text-slate-950 hover:bg-teal-300">
+            <a href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer" className="block min-h-11 rounded-xl bg-teal-400 px-5 py-3 text-center font-semibold text-slate-950 hover:bg-teal-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-300">
               Open your existing ChatGPT account ↗
             </a>
             <p className="text-xs text-slate-400">ChatGPT opens separately. Your subscription and conversation history are not embedded or synced.</p>

@@ -5,7 +5,10 @@
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
+    "check": "prisma generate && tsc --noEmit && vitest run",
     "start": "next start",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "db:deploy": "prisma migrate deploy"
@@ -28,6 +31,7 @@
     "postcss": "^8.4.38",
     "prisma": "^5.20.0",
     "tailwindcss": "^3.4.4",
-    "typescript": "^5.5.0"
+    "typescript": "^5.5.0",
+    "vitest": "^4.1.12"
   }
 }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { lifeOSOwner } from "@/lib/lifeos-auth";
 
-const horizons = ["LIFETIME","PHASE","YEAR","SPRINT","MONTH","WEEK","DAY","HOUR"] as const;
+const horizons = ["LIFETIME", "PHASE", "YEAR", "SPRINT", "MONTH", "WEEK", "DAY", "HOUR"] as const;
 const fail = () => NextResponse.json({ error: "Not found" }, { status: 404 });
 
 export async function GET() {
@@ -33,8 +33,11 @@ export async function POST(req: NextRequest) {
   if (body.kind === "review") {
     if (typeof body.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(body.date))
       return NextResponse.json({ error: "Invalid date" }, { status: 400 });
-    const answers = [body.intended,body.actual,body.learned,body.next].map(v => typeof v === "string" ? v.trim() : "");
-    if (answers.some(v => v.length > 4000)) return NextResponse.json({ error: "Review too long" }, { status: 400 });
+    const answers = [body.intended, body.actual, body.learned, body.next].map((value) =>
+      typeof value === "string" ? value.trim() : ""
+    );
+    if (answers.some((value) => value.length > 4000))
+      return NextResponse.json({ error: "Review too long" }, { status: 400 });
     const date = new Date(body.date + "T12:00:00.000Z");
     if (Number.isNaN(date.valueOf()) || date.toISOString().slice(0,10) !== body.date)
       return NextResponse.json({ error: "Invalid date" }, { status: 400 });
@@ -54,7 +57,10 @@ export async function PATCH(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (!body || typeof body.id !== "string" || typeof body.done !== "boolean")
     return NextResponse.json({ error: "Invalid update" }, { status: 400 });
-  const updated = await db.lifeOSGoal.updateMany({ where: { id: body.id, ownerId }, data: { done: body.done } });
+  const updated = await db.lifeOSGoal.updateMany({
+    where: { id: body.id, ownerId },
+    data: { done: body.done, completedAt: body.done ? new Date() : null },
+  });
   if (!updated.count) return fail();
   return NextResponse.json({ ok: true });
 }

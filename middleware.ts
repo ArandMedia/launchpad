@@ -52,7 +52,10 @@ export async function middleware(request: NextRequest) {
     }
 
     if (INTERNAL_ONLY_PATHS.some((pattern) => pattern.test(pathname))) {
-      return NextResponse.rewrite(new URL("/404", request.url));
+      return new NextResponse("Not found", {
+        status: 404,
+        headers: { "Content-Type": "text/plain; charset=utf-8" },
+      });
     }
 
     if (PUBLIC_PORTAL_PATHS.includes(pathname)) {

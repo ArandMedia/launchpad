@@ -1,12 +1,63 @@
 # LifeOS setup and verification
 
-This work is in a draft pull request. Do not merge until it passes build, auth and database tests.
+LifeOS is private, owner-scoped, and fail-closed. Keep the pull request in draft until the production owner ID and migration window are confirmed. Do not use `prisma db push` for this change.
 
-1. Set `LIFEOS_OWNER_USER_ID` in the Vercel environment to the exact `User.id` of the intended personal account. Never use an email match or the ADMIN role alone. Without this variable, LifeOS denies access.
-2. Review the Prisma schema additions and create a reviewed database migration. The build script has now been changed to `prisma generate && next build`, so builds do not mutate production tables. Review and generate an explicit migration against a safe database; do not apply a schema change during a Vercel build.
-3. Run `npx prisma generate`, `npx tsc --noEmit`, and `npm run build` in a safe test environment with an isolated database. Verify `/lifeos` and `/api/lifeos` on both internal and portal hostnames.
-4. Confirm another ADMIN cannot view or change the LifeOS owner's goals or reviews. Confirm signed-out requests fail. Confirm a logged-in client cannot access any LifeOS routes.
-5. Verify goal creation, parent linking, completion, AAR save/upsert, and persistence after reload on iPad Safari.
-6. Deploy to preview first and inspect the result before promoting to production.
+## Required configuration
 
-Current scope: basic goals and daily AARs. Not yet included: task scheduling, automatic sprint rollups, capacity forecasting, HealthKit, ChatGPT two-way connector, audit logs, or automated tests. No live deployment has been verified.
+Set `LIFEOS_OWNER_USER_ID` to the exact `User.id` of the intended personal account. An email address or the `ADMIN` role is not sufficient. When the variable is absent or does not match the signed team session, both the page and API deny access.
+
+Configure the value separately in each intended Vercel environment. A preview without this setting remains safely inaccessible.
+
+## Database migration
+
+The migration history contains:
+
+- `20261110190000_baseline_launchpad`: a generated baseline of the existing schema at commit `00cfebd`, before LifeOS;
+- `20261110203000_add_lifeos_foundation`: the reviewed, additive LifeOS migration.
+
+The LifeOS migration creates only `LifeOSGoal` and `LifeOSReview`, plus owner/date indexes. It does not alter or backfill existing LaunchPAD tables. Builds run `prisma generate && next build` and never mutate the database.
+
+For a fresh database, apply both migrations normally with `npx prisma migrate deploy`.
+
+The existing LaunchPAD database predates Prisma migration history. During an approved database change window, first verify that its existing tables match the baseline, then mark only the baseline as already applied before deploying LifeOS:
+
+```sh
+npm ci
+npx prisma migrate resolve --applied 20261110190000_baseline_launchpad
+npx prisma migrate status
+npx prisma migrate deploy
+npx prisma migrate status
+```
+
+Take the normal database backup first. `migrate resolve` records migration metadata; it does not execute the baseline SQL. Never mark the LifeOS migration as applied before its SQL has run. Do not run these commands against production as part of PR validation.
+
+## Local checks
+
+Use a disposable PostgreSQL database, never a production connection:
+
+```sh
+npm ci
+npm run check
+npm run build
+```
+
+`npm run check` runs Prisma Client generation, the TypeScript compiler, and the focused Vitest suite.
+
+The verification suite covers:
+
+- fail-closed owner configuration;
+- signed-out, client, non-owner admin, and non-owner team sessions;
+- portal-domain and internal-domain middleware boundaries;
+- owner goal creation, parent validation, completion, reopening, and reload persistence;
+- daily AAR creation, same-date update, validation, and reload persistence.
+
+## Manual preview checks
+
+After the migration and owner variable are configured in a non-production preview:
+
+1. Confirm `/lifeos` and `/api/lifeos` deny signed-out users, portal clients, and a non-owner admin.
+2. Confirm the configured owner can load the HUD, create a parent and child objective, complete and reopen the child, and reload without losing data.
+3. Save a daily AAR, change one answer for the same date, save again, and reload to confirm the update.
+4. Check iPad Safari in portrait and landscape. Controls should remain at least 44px high, form text should remain 16px to avoid focus zoom, and the page should have no horizontal overflow.
+
+Current scope is goals and daily AARs. It does not include HealthKit, embedded ChatGPT data, task scheduling, automatic sprint rollups, capacity forecasting, or audit logs.
