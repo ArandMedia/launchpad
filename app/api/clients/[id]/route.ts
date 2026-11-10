@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requireTeamSession } from "@/lib/require-auth";
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const auth = await requireTeamSession();
   if ("error" in auth) return auth.error;
 
@@ -20,7 +21,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 // Archiving is the reversible way to retire a client -- their projects,
 // history, and portal login all stay intact, they just drop out of the
 // default client list.
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const auth = await requireTeamSession();
   if ("error" in auth) return auth.error;
 
@@ -44,7 +46,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 // a client with active or historical projects would silently take their
 // project history with it, which is exactly the kind of data loss this
 // system is meant to prevent. Archive instead for anything with history.
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const auth = await requireTeamSession();
   if ("error" in auth) return auth.error;
 

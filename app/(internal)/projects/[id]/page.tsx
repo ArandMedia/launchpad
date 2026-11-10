@@ -4,7 +4,8 @@ import Link from "next/link";
 import ProjectPanels from "./ProjectPanels";
 import ProjectHeader from "./ProjectHeader";
 
-export default async function ProjectDetail({ params }: { params: { id: string } }) {
+export default async function ProjectDetail(props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const project = await db.project.findUnique({
     where: { id: params.id },
     include: {

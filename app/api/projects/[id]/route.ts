@@ -4,7 +4,8 @@ import { db } from "@/lib/db";
 import { notifyClient } from "@/lib/notifications";
 import { requireTeamSession } from "@/lib/require-auth";
 
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const project = await db.project.findUnique({
     where: { id: params.id },
     include: {
@@ -26,7 +27,8 @@ export async function GET(_req: NextRequest, { params }: { params: { id: string 
 // Archived projects stay fully intact (tasks, milestones, updates, docs)
 // and stay visible on the client's portal -- they just drop out of the
 // default internal project list.
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const auth = await requireTeamSession();
   if ("error" in auth) return auth.error;
 
@@ -79,7 +81,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 // milestones, updates, documents -- including their blob files). This is
 // the destructive option; archiving (PATCH { archived: true }) is the
 // reversible one and should be reached for first.
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const auth = await requireTeamSession();
   if ("error" in auth) return auth.error;
 

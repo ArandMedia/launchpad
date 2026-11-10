@@ -10,10 +10,11 @@ export const dynamic = "force-dynamic";
 // way in, and every query below is filtered by that client's id. A client
 // can never see another client's data, no matter how many hundreds of
 // thousands of clients are in the system. Middleware already enforces the
-// session-matches-slug check at the edge; this is the same check done
+// session-matches-slug check at the network boundary; this is the same check done
 // again server-side so this page is safe even if it's ever reached by a
 // path the middleware matcher doesn't cover.
-export default async function ClientPortal({ params }: { params: { clientSlug: string } }) {
+export default async function ClientPortal(props: { params: Promise<{ clientSlug: string }> }) {
+  const params = await props.params;
   const session = await getClientSession();
   if (!session || session.slug !== params.clientSlug) {
     redirect("/portal-login");

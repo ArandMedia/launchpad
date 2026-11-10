@@ -6,7 +6,8 @@ import { requireTeamSession } from "@/lib/require-auth";
 // itself notify the client. Client-visible communication always goes
 // through the Update model (POST via PATCH /api/projects/[id] with
 // postUpdate), so there's exactly one place notifications can fire from.
-export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
+export async function PATCH(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const auth = await requireTeamSession();
   if ("error" in auth) return auth.error;
 
@@ -28,7 +29,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   return NextResponse.json({ milestone });
 }
 
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const auth = await requireTeamSession();
   if ("error" in auth) return auth.error;
 

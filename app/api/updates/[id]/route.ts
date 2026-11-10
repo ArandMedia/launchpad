@@ -5,7 +5,8 @@ import { requireTeamSession } from "@/lib/require-auth";
 // Deleting an update only removes the log entry -- it does not (and
 // cannot) unsend a notification email that already went out. This is for
 // cleaning up test entries or mistakes, not for retracting communication.
-export async function DELETE(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const auth = await requireTeamSession();
   if ("error" in auth) return auth.error;
 

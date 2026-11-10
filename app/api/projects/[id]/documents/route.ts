@@ -6,7 +6,8 @@ import { requireTeamSession } from "@/lib/require-auth";
 const VALID_CATEGORIES = ["CONTRACT", "INVOICE", "SOW", "OTHER"];
 const MAX_FILE_BYTES = 25 * 1024 * 1024; // 25MB
 
-export async function POST(req: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const auth = await requireTeamSession();
   if ("error" in auth) return auth.error;
 

@@ -12,7 +12,7 @@ import { verifySession, TEAM_COOKIE, CLIENT_COOKIE } from "@/lib/session";
 
 const PUBLIC_INTERNAL_PATHS = ["/login", "/setup"];
 const PUBLIC_PORTAL_PATHS = ["/portal-login"];
-const INTERNAL_ONLY_PATHS = [/^\/projects(\/|$)/, /^\/clients(\/|$)/, /^\/api\/projects(\/|$)/, /^\/api\/clients(\/|$)/, /^\/api\/tasks(\/|$)/, /^\/api\/milestones(\/|$)/, /^\/api\/updates(\/|$)/, /^\/reference(\/|$)/, /^\/api\/reference(\/|$)/];
+const INTERNAL_ONLY_PATHS = [/^\/lifeos(\/|$)/, /^\/api\/lifeos(\/|$)/, /^\/projects(\/|$)/, /^\/clients(\/|$)/, /^\/api\/projects(\/|$)/, /^\/api\/clients(\/|$)/, /^\/api\/tasks(\/|$)/, /^\/api\/milestones(\/|$)/, /^\/api\/updates(\/|$)/, /^\/reference(\/|$)/, /^\/api\/reference(\/|$)/];
 // Document routes don't live under a client-slug path (they're keyed by
 // document id, not client), so they can't be gated by the slug-match check
 // below. The route handlers do their own auth (team session OR a client
@@ -28,7 +28,7 @@ function isAsset(pathname: string) {
   );
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const host = request.headers.get("host") || "";
   const isPortalDomain = host.startsWith("portal.");
   const { pathname } = request.nextUrl;
@@ -52,7 +52,10 @@ export async function middleware(request: NextRequest) {
     }
 
     if (INTERNAL_ONLY_PATHS.some((pattern) => pattern.test(pathname))) {
-      return NextResponse.rewrite(new URL("/404", request.url));
+      return new NextResponse("Not found", {
+        status: 404,
+        headers: { "Content-Type": "text/plain; charset=utf-8" },
+      });
     }
 
     if (PUBLIC_PORTAL_PATHS.includes(pathname)) {

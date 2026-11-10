@@ -7,11 +7,12 @@ export const dynamic = "force-dynamic";
 // Server component — fetches first page directly. The client-side
 // dashboard can later swap to SWR + the /api/projects cursor endpoint
 // for infinite scroll once volume grows.
-export default async function InternalDashboard({
-  searchParams,
-}: {
-  searchParams: { archived?: string };
-}) {
+export default async function InternalDashboard(
+  props: {
+    searchParams: Promise<{ archived?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const showArchived = searchParams.archived === "1";
 
   const projects = await db.project.findMany({
