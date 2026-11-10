@@ -25,7 +25,7 @@ const modules = [
 ];
 
 export default async function LifeOSPage() {
-  const token = cookies().get(TEAM_COOKIE)?.value;
+  const token = (await cookies()).get(TEAM_COOKIE)?.value;
   const session = await verifySession(token);
   if (!session || session.kind !== "team") redirect("/login");
   // Fail closed unless this exact owner account is configured.

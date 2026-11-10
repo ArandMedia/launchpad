@@ -28,7 +28,7 @@ function isAsset(pathname: string) {
   );
 }
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const host = request.headers.get("host") || "";
   const isPortalDomain = host.startsWith("portal.");
   const { pathname } = request.nextUrl;

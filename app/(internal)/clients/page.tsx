@@ -4,11 +4,12 @@ import ClientsList from "./ClientsList";
 
 export const dynamic = "force-dynamic";
 
-export default async function ClientsPage({
-  searchParams,
-}: {
-  searchParams: { archived?: string };
-}) {
+export default async function ClientsPage(
+  props: {
+    searchParams: Promise<{ archived?: string }>;
+  }
+) {
+  const searchParams = await props.searchParams;
   const showArchived = searchParams.archived === "1";
 
   const clients = await db.client.findMany({

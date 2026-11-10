@@ -6,13 +6,13 @@ import { verifySession, TEAM_COOKIE, CLIENT_COOKIE, type TeamSession, type Clien
 // value on its own.
 
 export async function getTeamSession(): Promise<TeamSession | null> {
-  const token = cookies().get(TEAM_COOKIE)?.value;
+  const token = (await cookies()).get(TEAM_COOKIE)?.value;
   const session = await verifySession(token);
   return session?.kind === "team" ? session : null;
 }
 
 export async function getClientSession(): Promise<ClientSession | null> {
-  const token = cookies().get(CLIENT_COOKIE)?.value;
+  const token = (await cookies()).get(CLIENT_COOKIE)?.value;
   const session = await verifySession(token);
   return session?.kind === "client" ? session : null;
 }

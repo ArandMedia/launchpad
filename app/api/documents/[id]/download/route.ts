@@ -11,7 +11,8 @@ import { getTeamSession, getClientSession } from "@/lib/current-session";
 // - Team members can download any document.
 // - Clients can only download documents that are (a) marked clientVisible
 //   and (b) belong to a project owned by their own client record.
-export async function GET(_req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
   const document = await db.document.findUnique({
     where: { id: params.id },
     include: { project: { include: { client: true } } },

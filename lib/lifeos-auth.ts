@@ -13,6 +13,6 @@ export function isLifeOSOwner(
 }
 
 export async function lifeOSOwner() {
-  const session = await verifySession(cookies().get(TEAM_COOKIE)?.value);
+  const session = await verifySession((await cookies()).get(TEAM_COOKIE)?.value);
   return isLifeOSOwner(session) ? session.userId : null;
 }

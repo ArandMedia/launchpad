@@ -40,7 +40,8 @@ input[type=file]{position:absolute;opacity:0;width:1px;height:1px}
 
 const BACK = `<p><a href="/">&larr; LaunchPAD projects</a></p>`;
 
-export async function GET(req: NextRequest, { params }: { params: { slug: string } }) {
+export async function GET(req: NextRequest, props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const page = REFERENCE_PAGES[params.slug];
   if (!page) {
     return shell("Not found", `<h1>Page not found</h1><p>There is no reference page at this address.</p>${BACK}`, 404);

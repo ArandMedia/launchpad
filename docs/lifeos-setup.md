@@ -8,6 +8,12 @@ Set `LIFEOS_OWNER_USER_ID` to the exact `User.id` of the intended personal accou
 
 Configure the value separately in each intended Vercel environment. A preview without this setting remains safely inaccessible.
 
+## Runtime security baseline
+
+LaunchPAD runs Next.js 16.4.6 and React 19.3.1. Request cookies, page parameters, and route parameters use the asynchronous APIs required by Next.js 16, and the former middleware is now the supported Node.js `proxy.ts` convention.
+
+`@vercel/blob` is pinned to 2.4.0 because later 2.x releases currently pull an audited-vulnerable OIDC dependency chain that this app does not use. The private `put`, `get`, and `del` APIs used by LaunchPAD remain available. Both the full and production-only `npm audit` checks report zero findings.
+
 ## Database migration
 
 The migration history contains:
@@ -41,13 +47,13 @@ npm run check
 npm run build
 ```
 
-`npm run check` runs Prisma Client generation, the TypeScript compiler, and the focused Vitest suite.
+`npm run check` runs Prisma Client generation, Next.js route type generation, the TypeScript compiler, and the focused Vitest suite.
 
 The verification suite covers:
 
 - fail-closed owner configuration;
 - signed-out, client, non-owner admin, and non-owner team sessions;
-- portal-domain and internal-domain middleware boundaries;
+- portal-domain and internal-domain proxy boundaries;
 - owner goal creation, parent validation, completion, reopening, and reload persistence;
 - daily AAR creation, same-date update, validation, and reload persistence.
 

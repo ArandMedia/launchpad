@@ -1,9 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { NextRequest } from "next/server";
-import { middleware } from "@/middleware";
+import { proxy } from "@/proxy";
 import { CLIENT_COOKIE, TEAM_COOKIE, signSession } from "@/lib/session";
 
-describe("LifeOS middleware boundaries", () => {
+describe("LifeOS proxy boundaries", () => {
   const previousSecret = process.env.SESSION_SECRET;
 
   beforeAll(() => {
@@ -16,7 +16,7 @@ describe("LifeOS middleware boundaries", () => {
   });
 
   it.each(["/lifeos", "/api/lifeos"])("redirects signed-out internal requests for %s", async (pathname) => {
-    const response = await middleware(new NextRequest(`https://launchpad.example${pathname}`));
+    const response = await proxy(new NextRequest(`https://launchpad.example${pathname}`));
 
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe("https://launchpad.example/login");
@@ -33,7 +33,7 @@ describe("LifeOS middleware boundaries", () => {
       headers: { host: "portal.example", cookie: `${CLIENT_COOKIE}=${token}` },
     });
 
-    const response = await middleware(request);
+    const response = await proxy(request);
     expect(response.status).toBe(404);
     await expect(response.text()).resolves.toBe("Not found");
   });
@@ -49,7 +49,7 @@ describe("LifeOS middleware boundaries", () => {
       headers: { cookie: `${CLIENT_COOKIE}=${token}` },
     });
 
-    const response = await middleware(request);
+    const response = await proxy(request);
     expect(response.status).toBe(307);
     expect(response.headers.get("location")).toBe("https://launchpad.example/login");
   });
@@ -65,7 +65,7 @@ describe("LifeOS middleware boundaries", () => {
       headers: { cookie: `${TEAM_COOKIE}=${token}` },
     });
 
-    const response = await middleware(request);
+    const response = await proxy(request);
     expect(response.status).toBe(200);
     expect(response.headers.get("x-middleware-next")).toBe("1");
   });

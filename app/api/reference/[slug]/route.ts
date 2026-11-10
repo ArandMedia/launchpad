@@ -7,7 +7,8 @@ import { REFERENCE_PAGES, MAX_REFERENCE_BYTES } from "@/lib/reference";
 // complete HTML document. Admin-only: this content is private to the
 // account owner, and whatever is stored here is served as a page on this
 // domain, so it must never be writable by a regular team member.
-export async function PUT(req: NextRequest, { params }: { params: { slug: string } }) {
+export async function PUT(req: NextRequest, props: { params: Promise<{ slug: string }> }) {
+  const params = await props.params;
   const auth = await requireTeamSession();
   if ("error" in auth) return auth.error;
   if (auth.session.role !== "ADMIN") {
