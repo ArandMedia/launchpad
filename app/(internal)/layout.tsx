@@ -11,9 +11,9 @@ export default async function InternalLayout({ children }: { children: React.Rea
   const showLifeOS = isLifeOSOwner(await getTeamSession());
   return (
     <div className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-10">
-        <div className="max-w-6xl mx-auto flex min-h-14 flex-wrap items-center justify-between gap-3 px-4 py-2 sm:px-8">
-          <nav className="flex flex-wrap items-center gap-x-6 gap-y-2" aria-label="Main navigation">
+      <header className="launchpad-header bg-white border-b border-slate-200 sticky top-0 z-10">
+        <div className="max-w-[1280px] mx-auto flex min-h-14 flex-wrap items-center justify-between gap-2 px-4 py-2 sm:px-6 xl:px-8">
+          <nav className="flex flex-wrap items-center gap-x-4 gap-y-1 xl:gap-x-6" aria-label="Main navigation">
             <Link href="/" className="font-semibold text-slate-900">
               LaunchPAD
             </Link>

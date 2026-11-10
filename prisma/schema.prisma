@@ -210,10 +210,33 @@ model LifeOSGoal {
   endAt       DateTime? @db.Timestamptz(3)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  timeBlocks  LifeOSTimeBlock[]
 
   @@index([ownerId, createdAt])
   @@index([ownerId, parentId])
   @@index([ownerId, startAt])
+}
+
+// Daily execution is intentionally separate from long-horizon goals. A block
+// can stand alone or point at an objective without changing that objective's
+// own planning span.
+model LifeOSTimeBlock {
+  id          String   @id @default(cuid())
+  ownerId     String
+  title       String
+  note        String   @default("")
+  category    String   @default("")
+  status      String   @default("PLANNED")
+  startAt     DateTime @db.Timestamptz(3)
+  endAt       DateTime @db.Timestamptz(3)
+  objectiveId String?
+  objective   LifeOSGoal? @relation(fields: [objectiveId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([ownerId, startAt])
+  @@index([ownerId, status])
+  @@index([objectiveId])
 }
 
 model LifeOSReview {

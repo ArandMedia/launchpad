@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { lifeOSOwner } from "@/lib/lifeos-auth";
+import { BLOCK_STATUSES } from "@/lib/lifeos-blocks";
 
 const horizons = ["LIFETIME", "PHASE", "YEAR", "SPRINT", "MONTH", "WEEK", "DAY", "HOUR"] as const;
 const fail = () => NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -24,11 +25,12 @@ function scheduleFrom(body: Record<string, unknown>) {
 export async function GET() {
   const ownerId = await lifeOSOwner();
   if (!ownerId) return fail();
-  const [goals, reviews] = await Promise.all([
+  const [goals, reviews, blocks] = await Promise.all([
     db.lifeOSGoal.findMany({ where: { ownerId }, orderBy: { createdAt: "desc" } }),
     db.lifeOSReview.findMany({ where: { ownerId }, orderBy: { date: "desc" }, take: 30 }),
+    db.lifeOSTimeBlock.findMany({ where: { ownerId }, orderBy: { startAt: "asc" } }),
   ]);
-  return NextResponse.json({ goals, reviews });
+  return NextResponse.json({ goals, reviews, blocks });
 }
 
 export async function POST(req: NextRequest) {
@@ -66,6 +68,23 @@ export async function POST(req: NextRequest) {
     });
     return NextResponse.json({ review });
   }
+  if (body.kind === "block") {
+    const title = typeof body.title === "string" ? body.title.trim() : "";
+    const note = typeof body.note === "string" ? body.note.trim() : "";
+    const category = typeof body.category === "string" ? body.category.trim() : "";
+    const objectiveId = typeof body.objectiveId === "string" && body.objectiveId ? body.objectiveId : null;
+    const schedule = scheduleFrom(body);
+    if (!title || title.length > 180 || note.length > 1000 || category.length > 60 || !schedule?.startAt || !schedule.endAt)
+      return NextResponse.json({ error: "Invalid time block" }, { status: 400 });
+    if (!BLOCK_STATUSES.includes(body.status))
+      return NextResponse.json({ error: "Invalid block status" }, { status: 400 });
+    if (objectiveId && !(await db.lifeOSGoal.findFirst({ where: { id: objectiveId, ownerId } })))
+      return NextResponse.json({ error: "Invalid objective" }, { status: 400 });
+    const block = await db.lifeOSTimeBlock.create({
+      data: { ownerId, title, note, category, objectiveId, status: body.status, startAt: schedule.startAt, endAt: schedule.endAt },
+    });
+    return NextResponse.json({ block }, { status: 201 });
+  }
   return NextResponse.json({ error: "Unsupported action" }, { status: 400 });
 }
 
@@ -79,6 +98,29 @@ export async function PATCH(req: NextRequest) {
     const schedule = scheduleFrom(body);
     if (!schedule) return NextResponse.json({ error: "Invalid schedule" }, { status: 400 });
     const updated = await db.lifeOSGoal.updateMany({ where: { id: body.id, ownerId }, data: schedule });
+    if (!updated.count) return fail();
+    return NextResponse.json({ ok: true });
+  }
+  if (body.action === "block") {
+    const title = typeof body.title === "string" ? body.title.trim() : "";
+    const note = typeof body.note === "string" ? body.note.trim() : "";
+    const category = typeof body.category === "string" ? body.category.trim() : "";
+    const objectiveId = typeof body.objectiveId === "string" && body.objectiveId ? body.objectiveId : null;
+    const schedule = scheduleFrom(body);
+    if (!title || title.length > 180 || note.length > 1000 || category.length > 60 || !schedule?.startAt || !schedule.endAt || !BLOCK_STATUSES.includes(body.status))
+      return NextResponse.json({ error: "Invalid time block" }, { status: 400 });
+    if (objectiveId && !(await db.lifeOSGoal.findFirst({ where: { id: objectiveId, ownerId } })))
+      return NextResponse.json({ error: "Invalid objective" }, { status: 400 });
+    const updated = await db.lifeOSTimeBlock.updateMany({
+      where: { id: body.id, ownerId },
+      data: { title, note, category, objectiveId, status: body.status, startAt: schedule.startAt, endAt: schedule.endAt },
+    });
+    if (!updated.count) return fail();
+    return NextResponse.json({ ok: true });
+  }
+  if (body.action === "block-status") {
+    if (!BLOCK_STATUSES.includes(body.status)) return NextResponse.json({ error: "Invalid block status" }, { status: 400 });
+    const updated = await db.lifeOSTimeBlock.updateMany({ where: { id: body.id, ownerId }, data: { status: body.status } });
     if (!updated.count) return fail();
     return NextResponse.json({ ok: true });
   }

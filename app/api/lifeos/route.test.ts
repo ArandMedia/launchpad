@@ -27,10 +27,25 @@ type StoredReview = {
   updatedAt: Date;
 };
 
+type StoredBlock = {
+  id: string;
+  ownerId: string;
+  title: string;
+  note: string;
+  category: string;
+  status: string;
+  startAt: Date;
+  endAt: Date;
+  objectiveId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 const state = vi.hoisted(() => ({
   ownerId: null as string | null,
   goals: [] as StoredGoal[],
   reviews: [] as StoredReview[],
+  blocks: [] as StoredBlock[],
   nextId: 1,
 }));
 
@@ -93,6 +108,26 @@ vi.mock("@/lib/db", () => ({
         return created;
       }),
     },
+    lifeOSTimeBlock: {
+      findMany: vi.fn(async ({ where }: { where: { ownerId: string } }) =>
+        state.blocks.filter((block) => block.ownerId === where.ownerId)
+      ),
+      create: vi.fn(async ({ data }: { data: Omit<StoredBlock, "id" | "createdAt" | "updatedAt"> }) => {
+        const now = new Date();
+        const created: StoredBlock = { ...data, id: `block-${state.nextId++}`, createdAt: now, updatedAt: now };
+        state.blocks.push(created);
+        return created;
+      }),
+      updateMany: vi.fn(async ({ where, data }: {
+        where: { id: string; ownerId: string };
+        data: Partial<Omit<StoredBlock, "id" | "ownerId" | "createdAt" | "updatedAt">>;
+      }) => {
+        const block = state.blocks.find((candidate) => candidate.id === where.id && candidate.ownerId === where.ownerId);
+        if (!block) return { count: 0 };
+        Object.assign(block, data, { updatedAt: new Date() });
+        return { count: 1 };
+      }),
+    },
   },
 }));
 
@@ -111,6 +146,7 @@ describe("LifeOS API", () => {
     state.ownerId = null;
     state.goals.length = 0;
     state.reviews.length = 0;
+    state.blocks.length = 0;
     state.nextId = 1;
   });
 
@@ -234,5 +270,57 @@ describe("LifeOS API", () => {
     expect((await POST(request("POST", { kind: "goal", title: "Nope", horizon: "DECADE" }))).status).toBe(400);
     expect((await POST(request("POST", { kind: "review", date: "2026-02-30" }))).status).toBe(400);
     expect((await PATCH(request("PATCH", { id: "foreign-goal", done: true }))).status).toBe(404);
+  });
+
+  it("creates, reloads, edits, and completes an owner-scoped time block", async () => {
+    state.ownerId = "owner-user";
+    const goalResponse = await POST(request("POST", { kind: "goal", title: "Launch outcome", horizon: "SPRINT" }));
+    const goal = (await goalResponse.json()).goal as StoredGoal;
+    const createResponse = await POST(request("POST", {
+      kind: "block",
+      title: "Build launch page",
+      note: "Focus mode",
+      category: "Deep work",
+      status: "PLANNED",
+      objectiveId: goal.id,
+      startAt: "2026-11-10T15:00:00.000Z",
+      endAt: "2026-11-10T16:30:00.000Z",
+    }));
+    const created = (await createResponse.json()).block as StoredBlock;
+    expect(createResponse.status).toBe(201);
+    expect(created).toMatchObject({ title: "Build launch page", objectiveId: goal.id, status: "PLANNED" });
+
+    expect((await PATCH(request("PATCH", {
+      action: "block",
+      id: created.id,
+      title: "Build and verify launch page",
+      note: "",
+      category: "Deep work",
+      status: "IN_PROGRESS",
+      objectiveId: goal.id,
+      startAt: "2026-11-10T15:15:00.000Z",
+      endAt: "2026-11-10T17:00:00.000Z",
+    }))).status).toBe(200);
+    expect((await PATCH(request("PATCH", { action: "block-status", id: created.id, status: "COMPLETED" }))).status).toBe(200);
+    const data = await (await GET()).json();
+    expect(data.blocks).toHaveLength(1);
+    expect(data.blocks[0]).toMatchObject({ title: "Build and verify launch page", status: "COMPLETED" });
+  });
+
+  it("validates block ownership, objective links, timestamps, fields, and status", async () => {
+    state.ownerId = "owner-user";
+    state.goals.push({
+      id: "foreign-goal", ownerId: "other-user", title: "Foreign", horizon: "DAY", parentId: null,
+      done: false, completedAt: null, startAt: null, endAt: null, createdAt: new Date(), updatedAt: new Date(),
+    });
+    const base = {
+      kind: "block", title: "Focus", note: "", category: "", status: "PLANNED",
+      startAt: "2026-11-10T15:00:00.000Z", endAt: "2026-11-10T16:00:00.000Z",
+    };
+    expect((await POST(request("POST", { ...base, objectiveId: "foreign-goal" }))).status).toBe(400);
+    expect((await POST(request("POST", { ...base, status: "DELETED" }))).status).toBe(400);
+    expect((await POST(request("POST", { ...base, endAt: base.startAt }))).status).toBe(400);
+    expect((await POST(request("POST", { ...base, title: "" }))).status).toBe(400);
+    expect((await PATCH(request("PATCH", { action: "block-status", id: "missing", status: "COMPLETED" }))).status).toBe(404);
   });
 });
