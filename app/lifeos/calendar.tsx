@@ -31,6 +31,7 @@ export type CalendarGoal = {
 type Props = {
   goals: CalendarGoal[];
   blocks: TimeBlock[];
+  initialLevel?: CalendarLevel;
   onEditGoal: (goal: CalendarGoal) => void;
   onCreateBlock: (startLocal: string, endLocal: string) => void;
   onEditBlock: (block: TimeBlock) => void;
@@ -60,8 +61,8 @@ function monthDays(tile: CalendarTile) {
   return days;
 }
 
-export default function SemanticCalendar({ goals, blocks, onEditGoal, onCreateBlock, onEditBlock, onStatusBlock }: Props) {
-  const [level, setLevel] = useState<CalendarLevel>("DAY");
+export default function SemanticCalendar({ goals, blocks, initialLevel = "DAY", onEditGoal, onCreateBlock, onEditBlock, onStatusBlock }: Props) {
+  const [level, setLevel] = useState<CalendarLevel>(initialLevel);
   const [cursor, setCursor] = useState(() => nowInChicago());
   const [clock, setClock] = useState(() => new Date());
   const timelineRef = useRef<HTMLDivElement>(null);
