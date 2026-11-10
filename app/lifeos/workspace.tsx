@@ -55,6 +55,7 @@ export default function Workspace() {
   const [blockNote, setBlockNote] = useState("");
   const [blockStatus, setBlockStatus] = useState<BlockStatus>("PLANNED");
   const [blockEditorOpen, setBlockEditorOpen] = useState(false);
+  const [confirmDeleteBlock, setConfirmDeleteBlock] = useState(false);
   const [date, setDate] = useState(() => localDateForInput(new Date()));
   const [intended, setIntended] = useState("");
   const [actual, setActual] = useState("");
@@ -188,6 +189,7 @@ export default function Workspace() {
     setBlockNote(block?.note ?? "");
     setBlockStatus(block?.status ?? "PLANNED");
     setBlockEditorOpen(true);
+    setConfirmDeleteBlock(false);
     setError("");
     requestAnimationFrame(() => document.getElementById("block-editor")?.scrollIntoView({ behavior: "smooth", block: "center" }));
   }
@@ -250,6 +252,38 @@ export default function Workspace() {
   async function setTimeBlockStatus(block: TimeBlock, nextStatus: BlockStatus) {
     const saved = await patch({ action: "block-status", id: block.id, status: nextStatus }, nextStatus === "COMPLETED" ? "Time block completed" : nextStatus === "SKIPPED" ? "Time block skipped" : "Time block updated");
     if (saved && editingBlockId === block.id) setBlockStatus(nextStatus);
+  }
+
+  async function deleteTimeBlock() {
+    if (!editingBlockId) return;
+    const deleted = await patchRequest("DELETE", { id: editingBlockId }, "Time block deleted");
+    if (deleted) {
+      setBlockEditorOpen(false);
+      setEditingBlockId(null);
+      setConfirmDeleteBlock(false);
+    }
+  }
+
+  async function patchRequest(method: "DELETE", body: object, success: string) {
+    setBusy(true);
+    setError("");
+    setStatus("");
+    try {
+      const response = await fetch("/api/lifeos", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) throw new Error("Unable to delete time block");
+      await refresh();
+      setStatus(success);
+      return true;
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to delete time block");
+      return false;
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function toggle(goal: Goal) {
@@ -339,6 +373,12 @@ export default function Workspace() {
               <button type="submit" disabled={busy} className={`${button} bg-teal-400 text-slate-950 hover:bg-teal-300`}>{editingBlockId ? "Save changes" : "Create block"}</button>
               {editingBlockId && blockStatus !== "COMPLETED" && <button type="button" disabled={busy} onClick={() => { const found = blocks.find((block) => block.id === editingBlockId); if (found) setTimeBlockStatus(found, "COMPLETED"); }} className={`${button} border border-slate-600 hover:bg-slate-800`}>Complete</button>}
               {editingBlockId && blockStatus !== "SKIPPED" && <button type="button" disabled={busy} onClick={() => { const found = blocks.find((block) => block.id === editingBlockId); if (found) setTimeBlockStatus(found, "SKIPPED"); }} className={`${button} border border-slate-600 hover:bg-slate-800`}>Skip</button>}
+              {editingBlockId && !confirmDeleteBlock && <button type="button" disabled={busy} onClick={() => setConfirmDeleteBlock(true)} className={`${button} border border-red-700 text-red-300 hover:bg-red-950/50`}>Delete block</button>}
+              {editingBlockId && confirmDeleteBlock && <span className="flex flex-wrap items-center gap-2 rounded-lg border border-red-800 bg-red-950/30 p-2">
+                <span className="text-sm text-red-200">Delete permanently?</span>
+                <button type="button" disabled={busy} onClick={deleteTimeBlock} className={`${button} bg-red-500 text-white hover:bg-red-400`}>Confirm delete</button>
+                <button type="button" onClick={() => setConfirmDeleteBlock(false)} className={`${button} border border-slate-600 hover:bg-slate-800`}>Keep block</button>
+              </span>}
               <button type="button" onClick={() => setBlockEditorOpen(false)} className={`${button} border border-slate-600 hover:bg-slate-800`}>Cancel</button>
             </div>
           </form>

@@ -127,13 +127,19 @@ vi.mock("@/lib/db", () => ({
         Object.assign(block, data, { updatedAt: new Date() });
         return { count: 1 };
       }),
+      deleteMany: vi.fn(async ({ where }: { where: { id: string; ownerId: string } }) => {
+        const index = state.blocks.findIndex((candidate) => candidate.id === where.id && candidate.ownerId === where.ownerId);
+        if (index < 0) return { count: 0 };
+        state.blocks.splice(index, 1);
+        return { count: 1 };
+      }),
     },
   },
 }));
 
-import { GET, PATCH, POST } from "@/app/api/lifeos/route";
+import { DELETE, GET, PATCH, POST } from "@/app/api/lifeos/route";
 
-function request(method: "POST" | "PATCH", body: object) {
+function request(method: "POST" | "PATCH" | "DELETE", body: object) {
   return new NextRequest("http://launchpad.test/api/lifeos", {
     method,
     headers: { "Content-Type": "application/json" },
@@ -155,9 +161,10 @@ describe("LifeOS API", () => {
       GET(),
       POST(request("POST", { kind: "goal", title: "Hidden", horizon: "YEAR" })),
       PATCH(request("PATCH", { id: "goal-1", done: true })),
+      DELETE(request("DELETE", { id: "block-1" })),
     ]);
 
-    expect(responses.map((response) => response.status)).toEqual([404, 404, 404]);
+    expect(responses.map((response) => response.status)).toEqual([404, 404, 404, 404]);
   });
 
   it("creates and links owner goals while rejecting a foreign parent", async () => {
@@ -305,6 +312,8 @@ describe("LifeOS API", () => {
     const data = await (await GET()).json();
     expect(data.blocks).toHaveLength(1);
     expect(data.blocks[0]).toMatchObject({ title: "Build and verify launch page", status: "COMPLETED" });
+    expect((await DELETE(request("DELETE", { id: created.id }))).status).toBe(200);
+    expect(state.blocks).toHaveLength(0);
   });
 
   it("validates block ownership, objective links, timestamps, fields, and status", async () => {
@@ -322,5 +331,6 @@ describe("LifeOS API", () => {
     expect((await POST(request("POST", { ...base, endAt: base.startAt }))).status).toBe(400);
     expect((await POST(request("POST", { ...base, title: "" }))).status).toBe(400);
     expect((await PATCH(request("PATCH", { action: "block-status", id: "missing", status: "COMPLETED" }))).status).toBe(404);
+    expect((await DELETE(request("DELETE", { id: "missing" }))).status).toBe(404);
   });
 });
