@@ -3,7 +3,7 @@
 This work is in a draft pull request. Do not merge until it passes build, auth and database tests.
 
 1. Set `LIFEOS_OWNER_USER_ID` in the Vercel environment to the exact `User.id` of the intended personal account. Never use an email match or the ADMIN role alone. Without this variable, LifeOS denies access.
-2. Review the Prisma schema additions and create a reviewed database migration. The existing package build script runs `prisma db push --accept-data-loss`, which is **not suitable for an unreviewed production schema change**. Remove this dangerous build-time schema push before merging or deploying.
+2. Review the Prisma schema additions and create a reviewed database migration. The build script has now been changed to `prisma generate && next build`, so builds do not mutate production tables. Review and generate an explicit migration against a safe database; do not apply a schema change during a Vercel build.
 3. Run `npx prisma generate`, `npx tsc --noEmit`, and `npm run build` in a safe test environment with an isolated database. Verify `/lifeos` and `/api/lifeos` on both internal and portal hostnames.
 4. Confirm another ADMIN cannot view or change the LifeOS owner's goals or reviews. Confirm signed-out requests fail. Confirm a logged-in client cannot access any LifeOS routes.
 5. Verify goal creation, parent linking, completion, AAR save/upsert, and persistence after reload on iPad Safari.
