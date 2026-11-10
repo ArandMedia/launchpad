@@ -11,7 +11,6 @@ const links = [
   ["ArandMedia", "/lifeos/arandmedia", "Portfolio alignment"],
   ["Operation OMNIS", "/lifeos/omnis", "Mission · Strategy"],
   ["Insights", "/lifeos/insights", "Reviews · Evidence"],
-  ["Integrations", "/lifeos/settings", "Consent · Security"],
 ] as const;
 
 export default function ShellNav() {
