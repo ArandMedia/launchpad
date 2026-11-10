@@ -49,6 +49,12 @@ export default async function LifeOSPage() {
           <p className="mt-4 text-sm text-teal-300">Private planning and AAR data is saved to your LaunchPAD database. Health connections are not enabled.</p>
         </section>
 
+        <nav aria-label="LifeOS workspace views" className="mt-4 grid grid-cols-1 gap-2 rounded-xl border border-slate-700 bg-slate-900 p-2 sm:grid-cols-3">
+          <a href="#timeline" className="inline-flex min-h-11 items-center justify-center rounded-lg bg-teal-400 px-4 py-2 font-semibold text-slate-950 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-300">Timeline / Calendar</a>
+          <a href="#planning" className="inline-flex min-h-11 items-center justify-center rounded-lg px-4 py-2 font-semibold text-slate-200 hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-300">Planning workspace</a>
+          <a href="#aar" className="inline-flex min-h-11 items-center justify-center rounded-lg px-4 py-2 font-semibold text-slate-200 hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-300">Daily AAR</a>
+        </nav>
+
         <Workspace />
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           <section className="rounded-2xl border border-slate-700 bg-slate-900 p-6">

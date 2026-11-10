@@ -20,25 +20,30 @@ The migration history contains:
 
 - `20261110190000_baseline_launchpad`: a generated baseline of the existing schema at commit `00cfebd`, before LifeOS;
 - `20261110203000_add_lifeos_foundation`: the reviewed, additive LifeOS migration;
-- `20261110211000_add_lifeos_goal_completed_at`: an idempotent compatibility repair for early LifeOS tables that predate goal completion timestamps.
+- `20261110211000_add_lifeos_goal_completed_at`: an idempotent compatibility repair for early LifeOS tables that predate goal completion timestamps;
+- `20261110222000_add_lifeos_goal_schedule`: nullable `TIMESTAMPTZ` start/end scheduling for objectives, plus an owner/start index.
 
-The LifeOS migration creates only `LifeOSGoal` and `LifeOSReview`, plus owner/date indexes. It does not alter or backfill existing LaunchPAD tables. Builds run `prisma generate && next build` and never mutate the database.
+The calendar migration is additive. Existing objectives remain unscheduled with null timestamps, no rows are backfilled, and no LaunchPAD project/client data is touched. Precise instants are stored in PostgreSQL and displayed or edited in `America/Chicago`. Builds run `prisma generate && next build` and never mutate the database.
 
 For a fresh database, apply all migrations normally with `npx prisma migrate deploy`.
 
-The production LaunchPAD database has a failed legacy migration record named `20260711153157_init`; its SQL contained non-SQL console output, while the schema was subsequently repaired. It also contains the two early LifeOS tables but lacks `LifeOSGoal.completedAt`. During an approved database change window, first verify this exact state and create a recoverable database branch. Then reconcile only the known migration metadata and deploy the idempotent compatibility repair:
+The production LaunchPAD migration ledger was reconciled during the initial LifeOS release. For each later migration, create a Neon branch from production, run the migration and schema diff there, retain a recovery branch, and then deploy with the direct endpoint:
 
 ```sh
 npm ci
-npx prisma migrate resolve --rolled-back 20260711153157_init
-npx prisma migrate resolve --applied 20261110190000_baseline_launchpad
-npx prisma migrate resolve --applied 20261110203000_add_lifeos_foundation
 npx prisma migrate status
 npx prisma migrate deploy
 npx prisma migrate status
+npx prisma migrate diff --from-url "$DATABASE_URL" --to-schema-datamodel prisma/schema.prisma --exit-code
 ```
 
-`migrate resolve` records migration metadata; it does not execute schema SQL. Mark either migration as applied only after a schema diff confirms its objects already exist. Use the direct, non-pooled database endpoint for these commands. Do not run them against production as part of ordinary PR validation.
+Use the direct, non-pooled database endpoint for migration commands. Do not use `db push`, and do not run production migrations as part of ordinary PR validation.
+
+## Semantic calendar
+
+The primary LifeOS view supports explicit Life → Phase → Year → Quarter → Month → Week → Day → Hour zoom. Breadcrumbs, zoom buttons, adjacent-period controls, time-region buttons, and scheduled goal spans are all keyboard and touch accessible. The internal LaunchPAD navigation shows `LifeOS Calendar` only to the configured owner; direct page and API access remain fail-closed.
+
+Scheduling is optional. New and existing goals may remain unscheduled, while scheduled goals require both a valid start and end with the end after the start. Calendar input is interpreted in `America/Chicago`, including daylight-saving validation, then sent to the API as UTC instants.
 
 ## Local checks
 
@@ -58,6 +63,9 @@ The verification suite covers:
 - signed-out, client, non-owner admin, and non-owner team sessions;
 - portal-domain and internal-domain proxy boundaries;
 - owner goal creation, parent validation, completion, reopening, and reload persistence;
+- optional schedule creation, edit, clear, validation, and UTC/Chicago round trips;
+- every semantic zoom level and calendar boundary, including DST gaps;
+- owner-only homepage navigation and fail-closed direct access;
 - daily AAR creation, same-date update, validation, and reload persistence.
 
 ## Manual preview checks
@@ -67,6 +75,9 @@ After the migration and owner variable are configured in a non-production previe
 1. Confirm `/lifeos` and `/api/lifeos` deny signed-out users, portal clients, and a non-owner admin.
 2. Confirm the configured owner can load the HUD, create a parent and child objective, complete and reopen the child, and reload without losing data.
 3. Save a daily AAR, change one answer for the same date, save again, and reload to confirm the update.
-4. Check iPad Safari in portrait and landscape. Controls should remain at least 44px high, form text should remain 16px to avoid focus zoom, and the page should have no horizontal overflow.
+4. Traverse Life → Phase → Year → Quarter → Month → Week → Day → Hour, use breadcrumbs and adjacent-period controls, and verify the current period is indicated.
+5. Create an unscheduled objective, schedule it, edit its end time, reload, and confirm it appears at broad and narrow calendar scales.
+6. Confirm the owner sees `LifeOS Calendar` in the internal homepage navigation and a non-owner does not.
+7. Check iPad Safari in portrait and landscape. Controls should remain at least 44px high, form text should remain 16px to avoid focus zoom, and the page should have no horizontal overflow.
 
-Current scope is goals and daily AARs. It does not include HealthKit, embedded ChatGPT data, task scheduling, automatic sprint rollups, capacity forecasting, or audit logs.
+Current scope is goals, objective scheduling, the semantic calendar, and daily AARs. It does not include HealthKit, embedded ChatGPT data, task scheduling, automatic sprint rollups, capacity forecasting, or audit logs.
