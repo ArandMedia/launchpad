@@ -132,3 +132,14 @@ export async function PATCH(req: NextRequest) {
   if (!updated.count) return fail();
   return NextResponse.json({ ok: true });
 }
+
+export async function DELETE(req: NextRequest) {
+  const ownerId = await lifeOSOwner();
+  if (!ownerId) return fail();
+  const body = await req.json().catch(() => null);
+  if (!body || typeof body.id !== "string")
+    return NextResponse.json({ error: "Invalid delete" }, { status: 400 });
+  const deleted = await db.lifeOSTimeBlock.deleteMany({ where: { id: body.id, ownerId } });
+  if (!deleted.count) return fail();
+  return NextResponse.json({ ok: true });
+}
