@@ -23,8 +23,10 @@
   backdrop-filter: blur(14px);
 }
 
-.lifeos-shell-grid { display: grid; gap: 1rem; grid-template-columns: minmax(0, 1fr); }
+.lifeos-shell-grid { display: grid; grid-template-areas: "nav" "main"; gap: 1rem; grid-template-columns: minmax(0, 1fr); }
+.lifeos-shell-main { grid-area: main; }
 .lifeos-shell-nav {
+  grid-area: nav;
   display: flex;
   gap: .5rem;
   overflow-x: auto;
@@ -109,7 +111,11 @@
 }
 
 @media (min-width: 1180px) {
-  .lifeos-shell-grid { grid-template-columns: 14.5rem minmax(0, 1fr); gap: 1.25rem; }
+  .lifeos-shell-grid {
+    grid-template-areas: "main nav";
+    grid-template-columns: minmax(0, 1fr) 14.5rem;
+    gap: 1.5rem;
+  }
   .lifeos-shell-nav {
     position: sticky;
     top: max(1rem, env(safe-area-inset-top));

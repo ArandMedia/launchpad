@@ -307,6 +307,7 @@ model LifeOSAction {
 model LifeOSMetricDefinition {
   id          String   @id @default(cuid())
   ownerId     String
+  metricKey   String?
   domainKey   String
   name        String
   unit        String   @default("")
@@ -318,6 +319,7 @@ model LifeOSMetricDefinition {
   measurements LifeOSMeasurement[]
   healthMeasurements LifeOSHealthMeasurement[]
 
+  @@unique([ownerId, metricKey])
   @@index([ownerId, domainKey, active])
 }
 

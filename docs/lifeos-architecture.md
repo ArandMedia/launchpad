@@ -25,7 +25,9 @@ The six domain boundaries are Health, Wealth, Relationships, Self & Purpose, Ara
 
 ## Privacy and data handling
 
-Every query and mutation is scoped to the configured owner ID and fails closed for signed-out, client, and non-owner team sessions. Health values and notes are serialized and encrypted with AES-256-GCM before storage in `LifeOSHealthMeasurement`; the record stores ciphertext, a unique IV, and authentication tag. Set `LIFEOS_HEALTH_ENCRYPTION_KEY` to a dedicated secret in production. `SESSION_SECRET` is accepted as a deployment-compatible fallback and is context-derived before use.
+Every query and mutation is scoped to the configured owner ID and fails closed for signed-out, client, and non-owner team sessions. The AAR screen accepts a granular manual health and sleep check-in, keyed by stable metric identifiers so sleep stages, recovery signals, activity, and body measurements remain usable for history and correlation views. Health values and notes are serialized and encrypted with AES-256-GCM before storage in `LifeOSHealthMeasurement`; the record stores ciphertext, a unique IV, and authentication tag. Set `LIFEOS_HEALTH_ENCRYPTION_KEY` to a dedicated secret in production. `SESSION_SECRET` is accepted as a deployment-compatible fallback and is context-derived before use.
+
+The shared LifeOS shell is left-hand friendly: navigation uses a right rail at wide desktop and landscape-tablet widths, while narrower layouts place the navigation above the workspace instead of beside the user's working hand.
 
 Integration records declare scopes, consent state, and retention. A real connection can be disconnected, then its connection record and provider-imported evidence can be deleted. Manual evidence is not included in provider deletion.
 

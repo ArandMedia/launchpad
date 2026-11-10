@@ -80,4 +80,4 @@ After the migration and owner variable are configured in a non-production previe
 6. Confirm the owner sees `LifeOS Calendar` in the internal homepage navigation and a non-owner does not.
 7. Check iPad Safari in portrait and landscape. Controls should remain at least 44px high, form text should remain 16px to avoid focus zoom, and the page should have no horizontal overflow.
 
-Current scope is goals, objective scheduling, the semantic calendar, and daily AARs. It does not include HealthKit, embedded ChatGPT data, task scheduling, automatic sprint rollups, capacity forecasting, or audit logs.
+Current scope is goals, objective scheduling, the semantic calendar, daily AARs, and encrypted manual health and sleep history. It does not include HealthKit, embedded ChatGPT data, task scheduling, automatic sprint rollups, or capacity forecasting.
