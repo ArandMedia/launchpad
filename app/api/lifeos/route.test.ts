@@ -9,6 +9,8 @@ type StoredGoal = {
   parentId: string | null;
   done: boolean;
   completedAt: Date | null;
+  startAt: Date | null;
+  endAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -60,7 +62,7 @@ vi.mock("@/lib/db", () => ({
       }),
       updateMany: vi.fn(async ({ where, data }: {
         where: { id: string; ownerId: string };
-        data: { done: boolean; completedAt: Date | null };
+        data: Partial<Pick<StoredGoal, "done" | "completedAt" | "startAt" | "endAt">>;
       }) => {
         const goal = state.goals.find((candidate) => candidate.id === where.id && candidate.ownerId === where.ownerId);
         if (!goal) return { count: 0 };
@@ -132,6 +134,8 @@ describe("LifeOS API", () => {
       parentId: null,
       done: false,
       completedAt: null,
+      startAt: null,
+      endAt: null,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -187,6 +191,41 @@ describe("LifeOS API", () => {
     const data = await reload.json();
     expect(data.reviews).toHaveLength(1);
     expect(data.reviews[0].learned).toBe("Owner checks must be exact");
+  });
+
+  it("creates, edits, and clears a precise optional schedule", async () => {
+    state.ownerId = "owner-user";
+    const createResponse = await POST(request("POST", {
+      kind: "goal",
+      title: "Scheduled outcome",
+      horizon: "MONTH",
+      startAt: "2026-11-10T15:00:00.000Z",
+      endAt: "2026-11-10T17:00:00.000Z",
+    }));
+    const goal = (await createResponse.json()).goal as StoredGoal;
+    expect(createResponse.status).toBe(201);
+    expect(goal.startAt).toBe("2026-11-10T15:00:00.000Z");
+
+    expect((await PATCH(request("PATCH", {
+      action: "schedule",
+      id: goal.id,
+      startAt: "2027-01-01T18:00:00.000Z",
+      endAt: "2027-01-02T00:00:00.000Z",
+    }))).status).toBe(200);
+    expect(state.goals[0].startAt?.toISOString()).toBe("2027-01-01T18:00:00.000Z");
+
+    expect((await PATCH(request("PATCH", { action: "schedule", id: goal.id, startAt: null, endAt: null }))).status).toBe(200);
+    expect(state.goals[0].startAt).toBeNull();
+    expect(state.goals[0].endAt).toBeNull();
+  });
+
+  it("keeps unscheduled goals valid and rejects incomplete or reversed schedules", async () => {
+    state.ownerId = "owner-user";
+    const unscheduled = await POST(request("POST", { kind: "goal", title: "Someday", horizon: "LIFETIME" }));
+    expect(unscheduled.status).toBe(201);
+    expect(state.goals[0]).toMatchObject({ startAt: null, endAt: null });
+    expect((await POST(request("POST", { kind: "goal", title: "Half", horizon: "DAY", startAt: "2026-11-10T15:00:00.000Z" }))).status).toBe(400);
+    expect((await PATCH(request("PATCH", { action: "schedule", id: state.goals[0].id, startAt: "2026-11-10T17:00:00.000Z", endAt: "2026-11-10T15:00:00.000Z" }))).status).toBe(400);
   });
 
   it("validates horizons, dates, and update ownership", async () => {
