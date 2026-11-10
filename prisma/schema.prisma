@@ -210,11 +210,15 @@ model LifeOSGoal {
   endAt       DateTime? @db.Timestamptz(3)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
+  domainKey   String    @default("OMNIS")
+  targetValue Float?
+  targetUnit  String    @default("")
   timeBlocks  LifeOSTimeBlock[]
 
   @@index([ownerId, createdAt])
   @@index([ownerId, parentId])
   @@index([ownerId, startAt])
+  @@index([ownerId, domainKey])
 }
 
 // Daily execution is intentionally separate from long-horizon goals. A block
@@ -252,4 +256,172 @@ model LifeOSReview {
 
   @@unique([ownerId, date])
   @@index([ownerId, date])
+}
+
+model LifeOSDomainState {
+  id           String   @id @default(cuid())
+  ownerId      String
+  domainKey    String
+  currentState String   @default("")
+  desiredState String   @default("")
+  gap          String   @default("")
+  activeSystem String   @default("")
+  nextActions  String   @default("")
+  evidence     String   @default("")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([ownerId, domainKey])
+  @@index([ownerId, updatedAt])
+}
+
+model LifeOSRoutine {
+  id        String   @id @default(cuid())
+  ownerId   String
+  domainKey String
+  title     String
+  cadence   String   @default("WEEKLY")
+  active    Boolean  @default(true)
+  notes     String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId, domainKey, active])
+}
+
+model LifeOSAction {
+  id          String    @id @default(cuid())
+  ownerId     String
+  domainKey   String
+  title       String
+  status      String    @default("OPEN")
+  dueAt       DateTime? @db.Timestamptz(3)
+  legacyGoalId String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([ownerId, domainKey, status])
+  @@index([ownerId, dueAt])
+}
+
+model LifeOSMetricDefinition {
+  id          String   @id @default(cuid())
+  ownerId     String
+  domainKey   String
+  name        String
+  unit        String   @default("")
+  direction   String   @default("NEUTRAL")
+  sensitivity String   @default("STANDARD")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  measurements LifeOSMeasurement[]
+  healthMeasurements LifeOSHealthMeasurement[]
+
+  @@index([ownerId, domainKey, active])
+}
+
+model LifeOSMeasurement {
+  id         String   @id @default(cuid())
+  ownerId    String
+  metricId   String
+  metric     LifeOSMetricDefinition @relation(fields: [metricId], references: [id], onDelete: Cascade)
+  value      Float
+  note       String   @default("")
+  source     String   @default("MANUAL")
+  observedAt DateTime @db.Timestamptz(3)
+  createdAt  DateTime @default(now())
+
+  @@index([ownerId, metricId, observedAt])
+}
+
+// Health readings are stored separately and encrypted by the application.
+model LifeOSHealthMeasurement {
+  id         String   @id @default(cuid())
+  ownerId    String
+  metricId   String
+  metric     LifeOSMetricDefinition @relation(fields: [metricId], references: [id], onDelete: Cascade)
+  ciphertext String
+  iv         String
+  authTag    String
+  source     String   @default("MANUAL")
+  observedAt DateTime @db.Timestamptz(3)
+  createdAt  DateTime @default(now())
+
+  @@index([ownerId, metricId, observedAt])
+}
+
+model LifeOSPrinciple {
+  id        String   @id @default(cuid())
+  ownerId   String
+  domainKey String
+  title     String
+  statement String   @default("")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId, domainKey, active])
+}
+
+model LifeOSRelationshipCommitment {
+  id        String   @id @default(cuid())
+  ownerId   String
+  area      String
+  title     String
+  cadence   String   @default("")
+  note      String   @default("")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId, area, active])
+}
+
+model LifeOSReviewCycle {
+  id              String   @id @default(cuid())
+  ownerId         String
+  period          String
+  periodStart     DateTime @db.Date
+  domainKey       String?
+  observation     String   @default("")
+  recommendation  String   @default("")
+  decision        String   @default("")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([ownerId, period, periodStart, domainKey])
+  @@index([ownerId, periodStart])
+}
+
+model LifeOSIntegrationConnection {
+  id             String    @id @default(cuid())
+  ownerId        String
+  providerKey    String
+  domainKey      String
+  status         String    @default("NOT_CONNECTED")
+  scopes         String[]  @default([])
+  consentedAt    DateTime?
+  disconnectedAt DateTime?
+  retentionDays  Int       @default(365)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([ownerId, providerKey])
+  @@index([ownerId, domainKey, status])
+}
+
+// Append-only user-visible audit trail for LifeOS mutations.
+model LifeOSActivity {
+  id         String   @id @default(cuid())
+  ownerId    String
+  domainKey  String
+  entityType String
+  entityId   String
+  action     String
+  summary    String
+  createdAt  DateTime @default(now())
+
+  @@index([ownerId, createdAt])
+  @@index([ownerId, domainKey, createdAt])
 }

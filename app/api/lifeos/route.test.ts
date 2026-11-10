@@ -11,6 +11,9 @@ type StoredGoal = {
   completedAt: Date | null;
   startAt: Date | null;
   endAt: Date | null;
+  domainKey: string;
+  targetValue: number | null;
+  targetUnit: string;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -179,6 +182,9 @@ describe("LifeOS API", () => {
       completedAt: null,
       startAt: null,
       endAt: null,
+      domainKey: "OMNIS",
+      targetValue: null,
+      targetUnit: "",
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -191,6 +197,7 @@ describe("LifeOS API", () => {
 
     expect(rootResponse.status).toBe(201);
     expect(root.title).toBe("Operation OMNIS");
+    expect(root.domainKey).toBe("OMNIS");
     expect(childResponse.status).toBe(201);
     expect(child.parentId).toBe(root.id);
     expect(foreignResponse.status).toBe(400);
@@ -321,6 +328,7 @@ describe("LifeOS API", () => {
     state.goals.push({
       id: "foreign-goal", ownerId: "other-user", title: "Foreign", horizon: "DAY", parentId: null,
       done: false, completedAt: null, startAt: null, endAt: null, createdAt: new Date(), updatedAt: new Date(),
+      domainKey: "OMNIS", targetValue: null, targetUnit: "",
     });
     const base = {
       kind: "block", title: "Focus", note: "", category: "", status: "PLANNED",

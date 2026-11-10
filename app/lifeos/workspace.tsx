@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState, type FormEvent } from "react";
 import SemanticCalendar, { type CalendarGoal } from "./calendar";
 import { LIFEOS_TIME_ZONE, chicagoLocalToUtc, utcToChicagoInput } from "@/lib/lifeos-time";
 import { BLOCK_STATUSES, type BlockStatus, type TimeBlock } from "@/lib/lifeos-blocks";
+import { DOMAIN_LABELS, LIFEOS_DOMAINS, type LifeOSDomainKey } from "@/lib/lifeos-domains";
 
 type Goal = {
   id: string;
@@ -14,6 +15,7 @@ type Goal = {
   completedAt: string | null;
   startAt: string | null;
   endAt: string | null;
+  domainKey: LifeOSDomainKey;
 };
 
 type Review = {
@@ -34,11 +36,12 @@ function localDateForInput(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-export default function Workspace() {
+export default function Workspace({ mode = "today" }: { mode?: "today" | "timeline" | "reviews" }) {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [blocks, setBlocks] = useState<TimeBlock[]>([]);
   const [horizon, setHorizon] = useState("SPRINT");
+  const [goalDomainKey, setGoalDomainKey] = useState<LifeOSDomainKey>("OMNIS");
   const [title, setTitle] = useState("");
   const [parentId, setParentId] = useState("");
   const [startLocal, setStartLocal] = useState("");
@@ -121,7 +124,7 @@ export default function Workspace() {
     event.preventDefault();
     const schedule = scheduleValues(startLocal, endLocal);
     if (!schedule) return;
-    const saved = await submit({ kind: "goal", title, horizon, parentId: parentId || null, ...schedule });
+    const saved = await submit({ kind: "goal", title, horizon, domainKey: goalDomainKey, parentId: parentId || null, ...schedule });
     if (saved) {
       setTitle("");
       setParentId("");
@@ -318,16 +321,17 @@ export default function Workspace() {
         <p role="alert" className="lifeos-full-span rounded-lg border border-red-500 p-3 text-red-300">{error}</p>
       )}
 
-      <SemanticCalendar
+      {mode !== "reviews" && <SemanticCalendar
         goals={goals}
         blocks={blocks}
+        initialLevel={mode === "timeline" ? "LIFE" : "DAY"}
         onEditGoal={beginSchedule}
         onCreateBlock={(start, end) => showBlockEditor(start, end)}
         onEditBlock={(block) => showBlockEditor("", "", block)}
         onStatusBlock={setTimeBlockStatus}
-      />
+      />}
 
-      {blockEditorOpen && (
+      {mode !== "reviews" && blockEditorOpen && (
         <section id="block-editor" aria-labelledby="block-editor-heading" className="lifeos-full-span scroll-mt-24 rounded-2xl border border-teal-600 bg-slate-900 p-4 shadow-2xl sm:p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
@@ -386,7 +390,7 @@ export default function Workspace() {
         </section>
       )}
 
-      <section id="planning" aria-labelledby="planning-heading" className="lifeos-panel scroll-mt-24 min-w-0 rounded-2xl border border-slate-700 bg-slate-900 p-4 sm:p-5 xl:p-6">
+      {mode === "timeline" && <section id="planning" aria-labelledby="planning-heading" className="lifeos-panel scroll-mt-24 min-w-0 rounded-2xl border border-slate-700 bg-slate-900 p-4 sm:p-5 xl:p-6">
         <h2 id="planning-heading" className="text-xl font-semibold">Planning workspace</h2>
         <p className="mt-2 text-sm text-slate-400">Create outcomes across time horizons and connect them to a parent goal.</p>
         <form onSubmit={addGoal} className="lifeos-planning-form mt-4 space-y-4">
@@ -395,6 +399,11 @@ export default function Workspace() {
             <input required maxLength={180} value={title} onChange={(event) => setTitle(event.target.value)} className={input} />
           </label>
           <div className="lifeos-form-pair grid gap-4">
+            <label className="block font-medium">Domain
+              <select value={goalDomainKey} onChange={(event) => setGoalDomainKey(event.target.value as LifeOSDomainKey)} className={input}>
+                {LIFEOS_DOMAINS.map((item) => <option key={item} value={item}>{DOMAIN_LABELS[item]}</option>)}
+              </select>
+            </label>
             <label className="block font-medium">Horizon
               <select value={horizon} onChange={(event) => setHorizon(event.target.value)} className={input}>
                 {horizons.map((item) => <option key={item} value={item}>{item === "SPRINT" ? "13-week sprint" : item.toLowerCase()}</option>)}
@@ -433,7 +442,7 @@ export default function Workspace() {
                 <div className="min-w-0">
                   <p className={`break-words ${goal.done ? "text-slate-400 line-through" : "font-semibold"}`}>{goal.title}</p>
                   <p className="mt-1 text-xs text-slate-400">
-                    {goal.horizon}{goal.parentId ? ` · Parent: ${goalNames.get(goal.parentId) ?? "unavailable"}` : ""}
+                    {DOMAIN_LABELS[goal.domainKey] ?? goal.domainKey} · {goal.horizon}{goal.parentId ? ` · Parent: ${goalNames.get(goal.parentId) ?? "unavailable"}` : ""}
                   </p>
                   <p className="mt-1 text-xs text-slate-400">
                     {goal.startAt && goal.endAt
@@ -466,9 +475,9 @@ export default function Workspace() {
             </article>
           ))}
         </div>
-      </section>
+      </section>}
 
-      <section id="aar" aria-labelledby="review-heading" className="lifeos-panel scroll-mt-24 min-w-0 rounded-2xl border border-slate-700 bg-slate-900 p-4 sm:p-5 xl:p-6">
+      {mode === "reviews" && <section id="aar" aria-labelledby="review-heading" className="lifeos-panel lifeos-full-span scroll-mt-24 min-w-0 rounded-2xl border border-slate-700 bg-slate-900 p-4 sm:p-5 xl:p-6">
         <h2 id="review-heading" className="text-xl font-semibold">Daily After Action Review</h2>
         <p className="mt-2 text-sm text-slate-400">Choosing a saved date loads that review for editing.</p>
         <form onSubmit={addReview} className="lifeos-aar-form mt-4 space-y-4">
@@ -505,7 +514,7 @@ export default function Workspace() {
             </button>
           ))}
         </div>
-      </section>
+      </section>}
     </div>
   );
 }
