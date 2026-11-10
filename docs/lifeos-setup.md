@@ -19,23 +19,26 @@ LaunchPAD runs Next.js 16.4.6 and React 19.3.1. Request cookies, page parameters
 The migration history contains:
 
 - `20261110190000_baseline_launchpad`: a generated baseline of the existing schema at commit `00cfebd`, before LifeOS;
-- `20261110203000_add_lifeos_foundation`: the reviewed, additive LifeOS migration.
+- `20261110203000_add_lifeos_foundation`: the reviewed, additive LifeOS migration;
+- `20261110211000_add_lifeos_goal_completed_at`: an idempotent compatibility repair for early LifeOS tables that predate goal completion timestamps.
 
 The LifeOS migration creates only `LifeOSGoal` and `LifeOSReview`, plus owner/date indexes. It does not alter or backfill existing LaunchPAD tables. Builds run `prisma generate && next build` and never mutate the database.
 
-For a fresh database, apply both migrations normally with `npx prisma migrate deploy`.
+For a fresh database, apply all migrations normally with `npx prisma migrate deploy`.
 
-The existing LaunchPAD database predates Prisma migration history. During an approved database change window, first verify that its existing tables match the baseline, then mark only the baseline as already applied before deploying LifeOS:
+The production LaunchPAD database has a failed legacy migration record named `20260711153157_init`; its SQL contained non-SQL console output, while the schema was subsequently repaired. It also contains the two early LifeOS tables but lacks `LifeOSGoal.completedAt`. During an approved database change window, first verify this exact state and create a recoverable database branch. Then reconcile only the known migration metadata and deploy the idempotent compatibility repair:
 
 ```sh
 npm ci
+npx prisma migrate resolve --rolled-back 20260711153157_init
 npx prisma migrate resolve --applied 20261110190000_baseline_launchpad
+npx prisma migrate resolve --applied 20261110203000_add_lifeos_foundation
 npx prisma migrate status
 npx prisma migrate deploy
 npx prisma migrate status
 ```
 
-Take the normal database backup first. `migrate resolve` records migration metadata; it does not execute the baseline SQL. Never mark the LifeOS migration as applied before its SQL has run. Do not run these commands against production as part of PR validation.
+`migrate resolve` records migration metadata; it does not execute schema SQL. Mark either migration as applied only after a schema diff confirms its objects already exist. Use the direct, non-pooled database endpoint for these commands. Do not run them against production as part of ordinary PR validation.
 
 ## Local checks
 
