@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Workspace from "./workspace";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { TEAM_COOKIE, verifySession } from "@/lib/session";
@@ -26,8 +27,8 @@ export default async function LifeOSPage() {
   const token = cookies().get(TEAM_COOKIE)?.value;
   const session = await verifySession(token);
   if (!session || session.kind !== "team") redirect("/login");
-  // LifeOS contains private personal information: team access alone is insufficient.
-  if (session.role !== "ADMIN") redirect("/");
+  // Fail closed unless this exact owner account is configured.
+  if (!process.env.LIFEOS_OWNER_USER_ID || session.userId !== process.env.LIFEOS_OWNER_USER_ID) redirect("/");
 
   return (
     <main className="min-h-screen bg-slate-950 px-4 py-8 text-slate-100 sm:px-8">
@@ -44,9 +45,10 @@ export default async function LifeOSPage() {
         <section className="mt-8 rounded-2xl border border-teal-800 bg-slate-900 p-6">
           <h2 className="text-xl font-semibold">Operation OMNIS</h2>
           <p className="mt-2 text-slate-300">Your lifetime mission informs your phases, 13-week sprints, and daily decisions. Personal goals can also stand on their own.</p>
-          <p className="mt-4 text-sm text-teal-300">Foundation preview: no private health or planning data is collected on this page yet.</p>
+          <p className="mt-4 text-sm text-teal-300">Private planning and AAR data is saved to your LaunchPAD database. Health connections are not enabled.</p>
         </section>
 
+        <Workspace />
         <div className="mt-6 grid gap-4 md:grid-cols-2">
           <section className="rounded-2xl border border-slate-700 bg-slate-900 p-6">
             <h2 className="mb-4 text-lg font-semibold">Planning horizons</h2>
