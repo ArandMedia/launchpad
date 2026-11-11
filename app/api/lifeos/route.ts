@@ -23,14 +23,52 @@ function scheduleFrom(body: Record<string, unknown>) {
   return { startAt, endAt };
 }
 
+async function projectLinksFrom(body: Record<string, unknown>) {
+  const projectId = typeof body.projectId === "string" && body.projectId ? body.projectId : null;
+  const taskId = typeof body.taskId === "string" && body.taskId ? body.taskId : null;
+  const milestoneId = typeof body.milestoneId === "string" && body.milestoneId ? body.milestoneId : null;
+  if (taskId && milestoneId) return null;
+  if (taskId) {
+    const task = await db.task.findFirst({
+      where: { id: taskId, status: { not: "DONE" }, project: { archivedAt: null, status: { not: "COMPLETE" } } },
+      select: { projectId: true },
+    });
+    if (!task || (projectId && projectId !== task.projectId)) return null;
+    return { projectId: task.projectId, taskId, milestoneId: null };
+  }
+  if (milestoneId) {
+    const milestone = await db.milestone.findFirst({
+      where: { id: milestoneId, completedAt: null, project: { archivedAt: null, status: { not: "COMPLETE" } } },
+      select: { projectId: true },
+    });
+    if (!milestone || (projectId && projectId !== milestone.projectId)) return null;
+    return { projectId: milestone.projectId, taskId: null, milestoneId };
+  }
+  if (projectId) {
+    const project = await db.project.findFirst({ where: { id: projectId, archivedAt: null, status: { not: "COMPLETE" } }, select: { id: true } });
+    if (!project) return null;
+  }
+  return { projectId, taskId: null, milestoneId: null };
+}
+
 export async function GET() {
   const ownerId = await lifeOSOwner();
   if (!ownerId) return fail();
-  const [goals, reviews, blocks] = await Promise.all([
+  const [goals, reviews, rawBlocks] = await Promise.all([
     db.lifeOSGoal.findMany({ where: { ownerId }, orderBy: { createdAt: "desc" } }),
     db.lifeOSReview.findMany({ where: { ownerId }, orderBy: { date: "desc" }, take: 30 }),
-    db.lifeOSTimeBlock.findMany({ where: { ownerId }, orderBy: { startAt: "asc" } }),
+    db.lifeOSTimeBlock.findMany({
+      where: { ownerId },
+      orderBy: { startAt: "asc" },
+      include: { project: { include: { client: true } }, task: true, milestone: true },
+    }),
   ]);
+  const blocks = rawBlocks.map(({ project, task, milestone, ...block }) => ({
+    ...block,
+    projectName: project?.name ?? null,
+    clientName: project ? project.client.companyName || project.client.name : null,
+    linkedWorkTitle: task?.title ?? milestone?.title ?? null,
+  }));
   return NextResponse.json({ goals, reviews, blocks });
 }
 
@@ -85,8 +123,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Invalid block status" }, { status: 400 });
     if (objectiveId && !(await db.lifeOSGoal.findFirst({ where: { id: objectiveId, ownerId } })))
       return NextResponse.json({ error: "Invalid objective" }, { status: 400 });
+    const projectLinks = await projectLinksFrom(body);
+    if (!projectLinks) return NextResponse.json({ error: "Invalid project work link" }, { status: 400 });
     const block = await db.lifeOSTimeBlock.create({
-      data: { ownerId, title, note, category, objectiveId, status: body.status, startAt: schedule.startAt, endAt: schedule.endAt },
+      data: { ownerId, title, note, category, objectiveId, ...projectLinks, status: body.status, startAt: schedule.startAt, endAt: schedule.endAt },
     });
     return NextResponse.json({ block }, { status: 201 });
   }
@@ -116,9 +156,11 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Invalid time block" }, { status: 400 });
     if (objectiveId && !(await db.lifeOSGoal.findFirst({ where: { id: objectiveId, ownerId } })))
       return NextResponse.json({ error: "Invalid objective" }, { status: 400 });
+    const projectLinks = await projectLinksFrom(body);
+    if (!projectLinks) return NextResponse.json({ error: "Invalid project work link" }, { status: 400 });
     const updated = await db.lifeOSTimeBlock.updateMany({
       where: { id: body.id, ownerId },
-      data: { title, note, category, objectiveId, status: body.status, startAt: schedule.startAt, endAt: schedule.endAt },
+      data: { title, note, category, objectiveId, ...projectLinks, status: body.status, startAt: schedule.startAt, endAt: schedule.endAt },
     });
     if (!updated.count) return fail();
     return NextResponse.json({ ok: true });

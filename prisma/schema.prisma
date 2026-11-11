@@ -56,15 +56,15 @@ model User {
 }
 
 model Client {
-  id          String   @id @default(cuid())
-  name        String
-  companyName String?
-  email       String   @unique
-  phone       String?
+  id           String    @id @default(cuid())
+  name         String
+  companyName  String?
+  email        String    @unique
+  phone        String?
   // Portal login — client sees only projects linked to this id
-  slug         String   @unique // used in portal URL, e.g. /portal/acme-co
-  passwordHash String?  // set when the team creates portal access; null = no portal login yet
-  createdAt    DateTime @default(now())
+  slug         String    @unique // used in portal URL, e.g. /portal/acme-co
+  passwordHash String? // set when the team creates portal access; null = no portal login yet
+  createdAt    DateTime  @default(now())
   archivedAt   DateTime? // soft-archived clients drop out of default lists but keep their history
 
   projects Project[]
@@ -73,30 +73,31 @@ model Client {
 }
 
 model Project {
-  id          String        @id @default(cuid())
-  name        String
-  description String?
+  id             String        @id @default(cuid())
+  name           String
+  description    String?
   // Scope: the working brief the whole project hangs off. Kept as three
   // separate fields (not one blob) so both the internal dashboard and the
   // client portal can render "what's the problem / what are we building /
   // what does done look like" as a clean, scannable summary rather than a
   // wall of text.
-  problem         String?
-  solution        String?
-  desiredOutcome  String?
-  status      ProjectStatus @default(DISCOVERY)
-  startDate   DateTime?
-  targetDate  DateTime?
-  clientId    String
-  client      Client        @relation(fields: [clientId], references: [id])
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  archivedAt  DateTime? // soft-archived projects drop out of default lists but keep their history
+  problem        String?
+  solution       String?
+  desiredOutcome String?
+  status         ProjectStatus @default(DISCOVERY)
+  startDate      DateTime?
+  targetDate     DateTime?
+  clientId       String
+  client         Client        @relation(fields: [clientId], references: [id])
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  archivedAt     DateTime? // soft-archived projects drop out of default lists but keep their history
 
-  tasks       Task[]
-  milestones  Milestone[]
-  updates     Update[]
-  documents   Document[]
+  tasks      Task[]
+  milestones Milestone[]
+  updates    Update[]
+  documents  Document[]
+  timeBlocks LifeOSTimeBlock[]
 
   @@index([clientId])
   @@index([status])
@@ -104,32 +105,34 @@ model Project {
 }
 
 model Task {
-  id         String     @id @default(cuid())
+  id         String            @id @default(cuid())
   title      String
-  status     TaskStatus @default(TODO)
+  status     TaskStatus        @default(TODO)
   dueDate    DateTime?
   projectId  String
-  project    Project    @relation(fields: [projectId], references: [id])
+  project    Project           @relation(fields: [projectId], references: [id])
   assigneeId String?
-  assignee   User?      @relation(fields: [assigneeId], references: [id])
-  createdAt  DateTime   @default(now())
-  updatedAt  DateTime   @updatedAt
+  assignee   User?             @relation(fields: [assigneeId], references: [id])
+  createdAt  DateTime          @default(now())
+  updatedAt  DateTime          @updatedAt
+  timeBlocks LifeOSTimeBlock[]
 
   @@index([projectId])
   @@index([assigneeId])
 }
 
 model Milestone {
-  id              String    @id @default(cuid())
-  title           String
-  description     String?
-  targetDate      DateTime?
-  completedAt     DateTime?
-  clientVisible   Boolean   @default(true)
-  notifyOnComplete Boolean  @default(true)
-  projectId       String
-  project         Project   @relation(fields: [projectId], references: [id])
-  createdAt       DateTime  @default(now())
+  id               String            @id @default(cuid())
+  title            String
+  description      String?
+  targetDate       DateTime?
+  completedAt      DateTime?
+  clientVisible    Boolean           @default(true)
+  notifyOnComplete Boolean           @default(true)
+  projectId        String
+  project          Project           @relation(fields: [projectId], references: [id])
+  createdAt        DateTime          @default(now())
+  timeBlocks       LifeOSTimeBlock[]
 
   @@index([projectId])
 }
@@ -174,13 +177,13 @@ model Document {
 }
 
 model NotificationLog {
-  id         String              @id @default(cuid())
-  channel    NotificationChannel
-  recipient  String
-  subject    String
-  projectId  String
-  sentAt     DateTime            @default(now())
-  success    Boolean             @default(true)
+  id        String              @id @default(cuid())
+  channel   NotificationChannel
+  recipient String
+  subject   String
+  projectId String
+  sentAt    DateTime            @default(now())
+  success   Boolean             @default(true)
 
   @@index([projectId])
 }
@@ -196,24 +199,23 @@ model ReferenceDoc {
   updatedAt DateTime @updatedAt
 }
 
-
 // LifeOS data is isolated by the authenticated owner's user ID.
 // No sensitive health measurements are stored in this first iteration.
 model LifeOSGoal {
-  id          String    @id @default(cuid())
+  id          String            @id @default(cuid())
   ownerId     String
   title       String
   horizon     String
   parentId    String?
-  done        Boolean   @default(false)
+  done        Boolean           @default(false)
   completedAt DateTime?
-  startAt     DateTime? @db.Timestamptz(3)
-  endAt       DateTime? @db.Timestamptz(3)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  domainKey   String    @default("OMNIS")
+  startAt     DateTime?         @db.Timestamptz(3)
+  endAt       DateTime?         @db.Timestamptz(3)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  domainKey   String            @default("OMNIS")
   targetValue Float?
-  targetUnit  String    @default("")
+  targetUnit  String            @default("")
   timeBlocks  LifeOSTimeBlock[]
 
   @@index([ownerId, createdAt])
@@ -226,22 +228,31 @@ model LifeOSGoal {
 // can stand alone or point at an objective without changing that objective's
 // own planning span.
 model LifeOSTimeBlock {
-  id          String   @id @default(cuid())
+  id          String      @id @default(cuid())
   ownerId     String
   title       String
-  note        String   @default("")
-  category    String   @default("")
-  status      String   @default("PLANNED")
-  startAt     DateTime @db.Timestamptz(3)
-  endAt       DateTime @db.Timestamptz(3)
+  note        String      @default("")
+  category    String      @default("")
+  status      String      @default("PLANNED")
+  startAt     DateTime    @db.Timestamptz(3)
+  endAt       DateTime    @db.Timestamptz(3)
   objectiveId String?
   objective   LifeOSGoal? @relation(fields: [objectiveId], references: [id], onDelete: SetNull)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  projectId   String?
+  project     Project?    @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  taskId      String?
+  task        Task?       @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  milestoneId String?
+  milestone   Milestone?  @relation(fields: [milestoneId], references: [id], onDelete: SetNull)
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
 
   @@index([ownerId, startAt])
   @@index([ownerId, status])
   @@index([objectiveId])
+  @@index([projectId])
+  @@index([taskId])
+  @@index([milestoneId])
 }
 
 model LifeOSReview {
@@ -291,33 +302,33 @@ model LifeOSRoutine {
 }
 
 model LifeOSAction {
-  id          String    @id @default(cuid())
-  ownerId     String
-  domainKey   String
-  title       String
-  status      String    @default("OPEN")
-  dueAt       DateTime? @db.Timestamptz(3)
+  id           String    @id @default(cuid())
+  ownerId      String
+  domainKey    String
+  title        String
+  status       String    @default("OPEN")
+  dueAt        DateTime? @db.Timestamptz(3)
   legacyGoalId String?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   @@index([ownerId, domainKey, status])
   @@index([ownerId, dueAt])
 }
 
 model LifeOSMetricDefinition {
-  id          String   @id @default(cuid())
-  ownerId     String
-  metricKey   String?
-  domainKey   String
-  name        String
-  unit        String   @default("")
-  direction   String   @default("NEUTRAL")
-  sensitivity String   @default("STANDARD")
-  active      Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  measurements LifeOSMeasurement[]
+  id                 String                    @id @default(cuid())
+  ownerId            String
+  metricKey          String?
+  domainKey          String
+  name               String
+  unit               String                    @default("")
+  direction          String                    @default("NEUTRAL")
+  sensitivity        String                    @default("STANDARD")
+  active             Boolean                   @default(true)
+  createdAt          DateTime                  @default(now())
+  updatedAt          DateTime                  @updatedAt
+  measurements       LifeOSMeasurement[]
   healthMeasurements LifeOSHealthMeasurement[]
 
   @@unique([ownerId, metricKey])
@@ -325,31 +336,31 @@ model LifeOSMetricDefinition {
 }
 
 model LifeOSMeasurement {
-  id         String   @id @default(cuid())
+  id         String                 @id @default(cuid())
   ownerId    String
   metricId   String
   metric     LifeOSMetricDefinition @relation(fields: [metricId], references: [id], onDelete: Cascade)
   value      Float
-  note       String   @default("")
-  source     String   @default("MANUAL")
-  observedAt DateTime @db.Timestamptz(3)
-  createdAt  DateTime @default(now())
+  note       String                 @default("")
+  source     String                 @default("MANUAL")
+  observedAt DateTime               @db.Timestamptz(3)
+  createdAt  DateTime               @default(now())
 
   @@index([ownerId, metricId, observedAt])
 }
 
 // Health readings are stored separately and encrypted by the application.
 model LifeOSHealthMeasurement {
-  id         String   @id @default(cuid())
+  id         String                 @id @default(cuid())
   ownerId    String
   metricId   String
   metric     LifeOSMetricDefinition @relation(fields: [metricId], references: [id], onDelete: Cascade)
   ciphertext String
   iv         String
   authTag    String
-  source     String   @default("MANUAL")
-  observedAt DateTime @db.Timestamptz(3)
-  createdAt  DateTime @default(now())
+  source     String                 @default("MANUAL")
+  observedAt DateTime               @db.Timestamptz(3)
+  createdAt  DateTime               @default(now())
 
   @@index([ownerId, metricId, observedAt])
 }
@@ -382,16 +393,16 @@ model LifeOSRelationshipCommitment {
 }
 
 model LifeOSReviewCycle {
-  id              String   @id @default(cuid())
-  ownerId         String
-  period          String
-  periodStart     DateTime @db.Date
-  domainKey       String?
-  observation     String   @default("")
-  recommendation  String   @default("")
-  decision        String   @default("")
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             String   @id @default(cuid())
+  ownerId        String
+  period         String
+  periodStart    DateTime @db.Date
+  domainKey      String?
+  observation    String   @default("")
+  recommendation String   @default("")
+  decision       String   @default("")
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@unique([ownerId, period, periodStart, domainKey])
   @@index([ownerId, periodStart])

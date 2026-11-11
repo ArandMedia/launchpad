@@ -162,6 +162,11 @@ export default function SemanticCalendar({ goals, blocks, externalEvents, initia
     return `${timeLabel(event.startAt)}–${timeLabel(event.endAt)}`;
   }
 
+  function projectContext(block: TimeBlock) {
+    if (!block.projectName) return null;
+    return `${block.clientName ? `${block.clientName} · ` : ""}${block.projectName}`;
+  }
+
   return (
     <section id="timeline" aria-labelledby="calendar-heading" className="lifeos-timeline scroll-mt-24 min-w-0 rounded-2xl border border-violet-800 bg-slate-900 p-4 sm:p-5 xl:p-6">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
@@ -231,6 +236,7 @@ export default function SemanticCalendar({ goals, blocks, externalEvents, initia
                     <button key={block.id} type="button" onClick={() => onEditBlock(block)} className="mt-2 block min-h-11 w-full rounded-lg border border-violet-500 bg-violet-950/50 p-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300">
                       <span className="block font-semibold">{block.title}</span>
                       <span className="mt-1 block text-sm text-violet-200">{timeLabel(block.startAt)}–{timeLabel(block.endAt)} · {statusLabel(block.status)}</span>
+                      {projectContext(block) && <span className="mt-1 block text-xs text-violet-300">{projectContext(block)}</span>}
                     </button>
                   )) : <p className="mt-2 text-sm text-slate-500">No active block right now.</p>}
                 </section>
@@ -241,6 +247,7 @@ export default function SemanticCalendar({ goals, blocks, externalEvents, initia
                     <button type="button" onClick={() => onEditBlock(upNext)} className="mt-2 block min-h-11 w-full rounded-lg border border-slate-600 p-3 text-left hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300">
                       <span className="block font-semibold">{upNext.title}</span>
                       <span className="mt-1 block text-sm text-slate-400">Starts {timeLabel(upNext.startAt)}</span>
+                      {projectContext(upNext) && <span className="mt-1 block text-xs text-violet-300">{projectContext(upNext)}</span>}
                     </button>
                   ) : <p className="mt-2 text-sm text-slate-500">No later blocks today.</p>}
                 </section>
@@ -310,7 +317,7 @@ export default function SemanticCalendar({ goals, blocks, externalEvents, initia
                   return (
                     <button key={block.id} type="button" onClick={(event) => { event.stopPropagation(); onEditBlock(block); }} className={`absolute z-10 min-h-11 overflow-hidden rounded-lg border px-2 py-1.5 text-left text-xs shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-200 ${inactive ? "border-slate-600 bg-slate-700/80 text-slate-300" : "border-violet-400 bg-violet-700/90 text-white"}`} style={{ top: `${startMinute * 0.8}px`, height: `${Math.max(44, (endMinute - startMinute) * 0.8)}px`, width, left }} aria-label={`Edit block ${block.title}, ${timeLabel(block.startAt)} to ${timeLabel(block.endAt)}, ${statusLabel(block.status)}`}>
                       <span className={`block truncate font-semibold ${inactive ? "line-through" : ""}`}>{block.title}</span>
-                      <span className="block truncate opacity-90">{timeLabel(block.startAt)}–{timeLabel(block.endAt)}</span>
+                      <span className="block truncate opacity-90">{projectContext(block) || `${timeLabel(block.startAt)}–${timeLabel(block.endAt)}`}</span>
                     </button>
                   );
                 })}

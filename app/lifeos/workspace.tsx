@@ -28,6 +28,17 @@ type Review = {
   next: string;
 };
 
+type ProjectAgendaItem = {
+  kind: "TASK" | "MILESTONE";
+  id: string;
+  title: string;
+  projectId: string;
+  projectName: string;
+  clientName: string;
+  dueAt: string | null;
+  scheduledBlocks: { id: string; startAt: string; endAt: string; status: BlockStatus }[];
+};
+
 const horizons = ["LIFETIME", "PHASE", "YEAR", "SPRINT", "MONTH", "WEEK", "DAY", "HOUR"];
 
 function localDateForInput(date: Date) {
@@ -42,6 +53,7 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
   const [reviews, setReviews] = useState<Review[]>([]);
   const [blocks, setBlocks] = useState<TimeBlock[]>([]);
   const [externalEvents, setExternalEvents] = useState<ExternalCalendarEvent[]>([]);
+  const [projectAgenda, setProjectAgenda] = useState<ProjectAgendaItem[]>([]);
   const [horizon, setHorizon] = useState("SPRINT");
   const [goalDomainKey, setGoalDomainKey] = useState<LifeOSDomainKey>("OMNIS");
   const [title, setTitle] = useState("");
@@ -59,6 +71,11 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
   const [blockCategory, setBlockCategory] = useState("");
   const [blockNote, setBlockNote] = useState("");
   const [blockStatus, setBlockStatus] = useState<BlockStatus>("PLANNED");
+  const [blockProjectId, setBlockProjectId] = useState("");
+  const [blockTaskId, setBlockTaskId] = useState("");
+  const [blockMilestoneId, setBlockMilestoneId] = useState("");
+  const [blockProjectName, setBlockProjectName] = useState("");
+  const [blockClientName, setBlockClientName] = useState("");
   const [blockEditorOpen, setBlockEditorOpen] = useState(false);
   const [confirmDeleteBlock, setConfirmDeleteBlock] = useState(false);
   const [date, setDate] = useState(() => localDateForInput(new Date()));
@@ -73,16 +90,22 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
   const goalNames = useMemo(() => new Map(goals.map((goal) => [goal.id, goal.title])), [goals]);
 
   async function refresh() {
-    const [response, calendarResponse] = await Promise.all([
+    const [response, calendarResponse, agendaResponse] = await Promise.all([
       fetch("/api/lifeos", { cache: "no-store" }),
       fetch("/api/lifeos/calendar-feeds", { cache: "no-store" }),
+      fetch("/api/lifeos/project-agenda", { cache: "no-store" }),
     ]);
     if (!response.ok) throw new Error("Unable to load your private workspace");
-    const [data, calendarData] = await Promise.all([response.json(), calendarResponse.ok ? calendarResponse.json() : Promise.resolve({ events: [] })]);
+    const [data, calendarData, agendaData] = await Promise.all([
+      response.json(),
+      calendarResponse.ok ? calendarResponse.json() : Promise.resolve({ events: [] }),
+      agendaResponse.ok ? agendaResponse.json() : Promise.resolve({ items: [] }),
+    ]);
     setGoals(data.goals);
     setReviews(data.reviews);
     setBlocks(data.blocks ?? []);
     setExternalEvents(calendarData.events ?? []);
+    setProjectAgenda(agendaData.items ?? []);
   }
 
   useEffect(() => {
@@ -207,6 +230,34 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
     setBlockCategory(block?.category ?? "");
     setBlockNote(block?.note ?? "");
     setBlockStatus(block?.status ?? "PLANNED");
+    setBlockProjectId(block?.projectId ?? "");
+    setBlockTaskId(block?.taskId ?? "");
+    setBlockMilestoneId(block?.milestoneId ?? "");
+    setBlockProjectName(block?.projectName ?? "");
+    setBlockClientName(block?.clientName ?? "");
+    setBlockEditorOpen(true);
+    setConfirmDeleteBlock(false);
+    setError("");
+    requestAnimationFrame(() => document.getElementById("block-editor")?.scrollIntoView({ behavior: "smooth", block: "center" }));
+  }
+
+  function scheduleProjectItem(item: ProjectAgendaItem) {
+    const now = new Date();
+    const rounded = new Date(Math.ceil(now.valueOf() / (30 * 60_000)) * 30 * 60_000);
+    const end = new Date(rounded.valueOf() + 60 * 60_000);
+    setEditingBlockId(null);
+    setBlockTitle(item.title);
+    setBlockStartLocal(utcToChicagoInput(rounded));
+    setBlockEndLocal(utcToChicagoInput(end));
+    setBlockObjectiveId("");
+    setBlockCategory("Project work");
+    setBlockNote(`${item.clientName} · ${item.projectName}`);
+    setBlockStatus("PLANNED");
+    setBlockProjectId(item.projectId);
+    setBlockTaskId(item.kind === "TASK" ? item.id : "");
+    setBlockMilestoneId(item.kind === "MILESTONE" ? item.id : "");
+    setBlockProjectName(item.projectName);
+    setBlockClientName(item.clientName);
     setBlockEditorOpen(true);
     setConfirmDeleteBlock(false);
     setError("");
@@ -231,6 +282,9 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
       category: blockCategory,
       status: blockStatus,
       objectiveId: blockObjectiveId || null,
+      projectId: blockProjectId || null,
+      taskId: blockTaskId || null,
+      milestoneId: blockMilestoneId || null,
       ...schedule,
     };
     const saved = editingBlockId
@@ -337,6 +391,42 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
         <p role="alert" className="lifeos-full-span rounded-lg border border-red-500 p-3 text-red-300">{error}</p>
       )}
 
+      {mode !== "reviews" && (
+        <section aria-labelledby="project-agenda-heading" className="lifeos-full-span rounded-2xl border border-slate-700 bg-slate-900 p-4 sm:p-5 xl:p-6">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">Projects connected to time</p>
+              <h2 id="project-agenda-heading" className="mt-1 text-xl font-semibold">Project agenda</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">Open tasks and milestones from internal and client projects. Schedule focused work without marking the underlying item complete.</p>
+            </div>
+            <span className="rounded-full bg-slate-800 px-3 py-1 text-sm text-slate-300">{projectAgenda.filter((item) => item.scheduledBlocks.length === 0).length} unscheduled</span>
+          </div>
+          {projectAgenda.length === 0 ? (
+            <p className="mt-4 rounded-xl border border-dashed border-slate-700 p-4 text-sm text-slate-400">No open project tasks or milestones need scheduling.</p>
+          ) : (
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+              {projectAgenda.map((item) => {
+                const nextBlock = item.scheduledBlocks[0];
+                return <article key={`${item.kind}:${item.id}`} className="rounded-xl border border-slate-700 bg-slate-950/60 p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-violet-300">{item.clientName} · {item.kind.toLowerCase()}</p>
+                      <h3 className="mt-1 break-words font-semibold text-slate-100">{item.title}</h3>
+                      <p className="mt-1 text-sm text-slate-400">{item.projectName}</p>
+                    </div>
+                    <button type="button" onClick={() => scheduleProjectItem(item)} className={`${button} shrink-0 bg-violet-400 text-slate-950 hover:bg-violet-300`}>{nextBlock ? "Schedule more" : "Schedule"}</button>
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
+                    <span>{item.dueAt ? `Due ${new Intl.DateTimeFormat("en-US", { timeZone: LIFEOS_TIME_ZONE, month: "short", day: "numeric", year: "numeric" }).format(new Date(item.dueAt))}` : "No due date"}</span>
+                    <span>{nextBlock ? `${item.scheduledBlocks.length} block${item.scheduledBlocks.length === 1 ? "" : "s"} · next ${new Intl.DateTimeFormat("en-US", { timeZone: LIFEOS_TIME_ZONE, month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(nextBlock.startAt))}` : "Not scheduled yet"}</span>
+                  </div>
+                </article>;
+              })}
+            </div>
+          )}
+        </section>
+      )}
+
       {mode !== "reviews" && <SemanticCalendar
         goals={goals}
         blocks={blocks}
@@ -358,6 +448,11 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
             <button type="button" onClick={() => setBlockEditorOpen(false)} className={`${button} border border-slate-600 text-sm hover:bg-slate-800`}>Close</button>
           </div>
           <form onSubmit={saveBlock} className="lifeos-block-form mt-4 grid gap-4">
+            {blockProjectId && <div className="lifeos-block-title rounded-xl border border-violet-700 bg-violet-950/35 p-3">
+              <p className="text-xs font-semibold uppercase tracking-wide text-violet-300">Linked project work</p>
+              <p className="mt-1 font-semibold">{blockProjectName}</p>
+              <p className="text-sm text-slate-400">{blockClientName} · Completing this block records the work session only.</p>
+            </div>}
             <label className="block font-medium lifeos-block-title">Title
               <input required maxLength={180} autoFocus value={blockTitle} onChange={(event) => setBlockTitle(event.target.value)} className={input} />
             </label>
