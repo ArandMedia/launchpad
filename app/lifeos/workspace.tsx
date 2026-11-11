@@ -545,12 +545,12 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
           <fieldset className="rounded-xl border border-slate-700 p-4">
             <legend className="px-1 font-medium">Schedule (optional)</legend>
             <p className="mb-3 text-sm text-slate-400">Leave both blank to keep this objective unscheduled. Times use {LIFEOS_TIME_ZONE}.</p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="block text-sm font-medium">
+            <div className="grid gap-4">
+              <label className="block min-w-0 text-sm font-medium">
                 Start
                 <input type="datetime-local" value={startLocal} onChange={(event) => setStartLocal(event.target.value)} className={input} />
               </label>
-              <label className="block text-sm font-medium">
+              <label className="block min-w-0 text-sm font-medium">
                 End
                 <input type="datetime-local" value={endLocal} onChange={(event) => setEndLocal(event.target.value)} className={input} />
               </label>
@@ -587,9 +587,9 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
                 <div id={`schedule-${goal.id}`} className="mt-4 rounded-xl border border-violet-800 bg-slate-950/60 p-4">
                   <h4 className="font-semibold">Edit schedule</h4>
                   <p className="mt-1 text-xs text-slate-400">{LIFEOS_TIME_ZONE}</p>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                    <label className="text-sm font-medium">Start<input type="datetime-local" value={editStartLocal} onChange={(event) => setEditStartLocal(event.target.value)} className={input} /></label>
-                    <label className="text-sm font-medium">End<input type="datetime-local" value={editEndLocal} onChange={(event) => setEditEndLocal(event.target.value)} className={input} /></label>
+                  <div className="mt-3 grid gap-4">
+                    <label className="block min-w-0 text-sm font-medium">Start<input type="datetime-local" value={editStartLocal} onChange={(event) => setEditStartLocal(event.target.value)} className={input} /></label>
+                    <label className="block min-w-0 text-sm font-medium">End<input type="datetime-local" value={editEndLocal} onChange={(event) => setEditEndLocal(event.target.value)} className={input} /></label>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <button type="button" disabled={busy} onClick={() => saveSchedule(goal)} className={`${button} bg-violet-400 text-slate-950`}>Save schedule</button>
