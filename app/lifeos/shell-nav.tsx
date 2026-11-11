@@ -15,7 +15,7 @@ const links = [
 
 export default function ShellNav() {
   const pathname = usePathname();
-  return <nav className="lifeos-shell-nav" aria-label="LifeOS primary navigation">
+  return <nav className="lifeos-shell-nav" aria-label="Calendar primary navigation">
     {links.map(([label, href, detail]) => {
       const active = pathname === href || (href === "/lifeos/pillars" && pathname.startsWith("/lifeos/pillars/"));
       return <Link key={href} href={href} aria-current={active ? "page" : undefined} className={`lifeos-shell-link ${active ? "lifeos-shell-link--active" : ""}`}>

@@ -1,6 +1,9 @@
 import { db } from "@/lib/db";
 import Link from "next/link";
 import ProjectsList from "./ProjectsList";
+import { getTeamSession } from "@/lib/current-session";
+import { isLifeOSOwner } from "@/lib/lifeos-auth";
+import { redirect } from "next/navigation";
 
 export const dynamic = "force-dynamic";
 
@@ -9,11 +12,16 @@ export const dynamic = "force-dynamic";
 // for infinite scroll once volume grows.
 export default async function InternalDashboard(
   props: {
-    searchParams: Promise<{ archived?: string }>;
+    searchParams: Promise<{ archived?: string; view?: string }>;
   }
 ) {
   const searchParams = await props.searchParams;
   const showArchived = searchParams.archived === "1";
+  const explicitlyOpenedProjects = searchParams.view === "projects" || showArchived;
+
+  if (isLifeOSOwner(await getTeamSession()) && !explicitlyOpenedProjects) {
+    redirect("/lifeos/today");
+  }
 
   const projects = await db.project.findMany({
     take: 50,
@@ -32,7 +40,7 @@ export default async function InternalDashboard(
           {showArchived ? "Archived projects" : "Projects"}
         </h1>
         <Link
-          href={showArchived ? "/" : "/?archived=1"}
+          href={showArchived ? "/?view=projects" : "/?view=projects&archived=1"}
           className="text-sm text-slate-400 hover:text-slate-700"
         >
           {showArchived ? "← Back to active projects" : "View archived →"}

@@ -44,10 +44,10 @@
   padding: .5rem .75rem;
   color: rgb(203 213 225);
 }
-.lifeos-shell-link:hover { border-color: rgb(15 118 110); background: rgb(15 23 42); }
-.lifeos-shell-link:focus-visible { outline: 2px solid rgb(94 234 212); outline-offset: 2px; }
+.lifeos-shell-link:hover { border-color: rgb(124 58 237); background: rgb(15 23 42); }
+.lifeos-shell-link:focus-visible { outline: 2px solid rgb(196 181 253); outline-offset: 2px; }
 .lifeos-shell-link small { margin-top: .1rem; color: rgb(100 116 139); font-size: .7rem; }
-.lifeos-shell-link--active { border-color: rgb(45 212 191); background: rgb(19 78 74 / .35); color: rgb(153 246 228); }
+.lifeos-shell-link--active { border-color: rgb(167 139 250); background: rgb(46 16 101 / .42); color: rgb(221 214 254); }
 
 .lifeos-workspace-grid,
 .lifeos-day-layout {

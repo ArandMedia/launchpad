@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import LaunchpadBrand from "../components/LaunchpadBrand";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -32,7 +33,9 @@ export default function LoginPage() {
   return (
     <main className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
       <div className="w-full max-w-sm">
-        <h1 className="text-xl font-semibold text-slate-900 mb-6">LaunchPAD</h1>
+        <h1 className="mb-6 flex justify-center text-2xl">
+          <LaunchpadBrand size={64} />
+        </h1>
         <form onSubmit={handleSubmit} className="grid gap-3">
           <input
             className="border border-slate-300 rounded px-3 py-2 text-sm"
