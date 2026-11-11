@@ -16,6 +16,29 @@ function targetDate(value: unknown) {
   return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value ? date : undefined;
 }
 
+function routineSchedule(body: Record<string, unknown>, cadence: string) {
+  if (body.scheduleTime === "" || body.scheduleTime === null || body.scheduleTime === undefined) {
+    return { scheduleTime: "", scheduleDurationMinutes: 30, scheduleWeekdays: [], scheduleDayOfMonth: null, scheduleStartsOn: null };
+  }
+  if (typeof body.scheduleTime !== "string" || !/^([01]\d|2[0-3]):[0-5]\d$/.test(body.scheduleTime)) return null;
+  const duration = Number(body.scheduleDurationMinutes);
+  const start = targetDate(body.scheduleStartsOn);
+  if (!Number.isInteger(duration) || duration < 5 || duration > 720 || !start) return null;
+  const weekdays = Array.isArray(body.scheduleWeekdays)
+    ? [...new Set(body.scheduleWeekdays.filter((value): value is number => Number.isInteger(value) && value >= 0 && value <= 6))]
+    : [];
+  const dayOfMonth = Number(body.scheduleDayOfMonth);
+  if (cadence === "WEEKLY" && weekdays.length === 0) return null;
+  if (cadence === "MONTHLY" && (!Number.isInteger(dayOfMonth) || dayOfMonth < 1 || dayOfMonth > 31)) return null;
+  return {
+    scheduleTime: body.scheduleTime,
+    scheduleDurationMinutes: duration,
+    scheduleWeekdays: cadence === "WEEKLY" ? weekdays : [],
+    scheduleDayOfMonth: cadence === "MONTHLY" ? dayOfMonth : null,
+    scheduleStartsOn: start,
+  };
+}
+
 async function activity(ownerId: string, domainKey: string, entityType: string, entityId: string, action: string, summary: string) {
   await db.lifeOSActivity.create({ data: { ownerId, domainKey, entityType, entityId, action, summary } });
 }
@@ -64,9 +87,12 @@ export async function POST(req: NextRequest) {
 
   if (body.kind === "routine") {
     if (!isDomainKey(body.domainKey)) return invalid("Invalid domain");
-    const title = text(body.title, 180); const cadence = text(body.cadence, 40) || "WEEKLY";
+    const title = text(body.title, 180);
+    const cadence = ["DAILY", "WEEKLY", "MONTHLY"].includes(body.cadence) ? body.cadence : "WEEKLY";
+    const schedule = routineSchedule(body, cadence);
     if (!title) return invalid("Routine title required");
-    const record = await db.lifeOSRoutine.create({ data: { ownerId, domainKey: body.domainKey, title, cadence, notes: text(body.notes, 1000) } });
+    if (!schedule) return invalid("Invalid routine schedule");
+    const record = await db.lifeOSRoutine.create({ data: { ownerId, domainKey: body.domainKey, title, cadence, notes: text(body.notes, 1000), ...schedule } });
     await activity(ownerId, body.domainKey, "ROUTINE", record.id, "CREATED", title);
     return NextResponse.json({ record }, { status: 201 });
   }
@@ -176,10 +202,11 @@ export async function PATCH(req: NextRequest) {
   if (body.kind === "routine-update") {
     const title = text(body.title, 180);
     const cadence = ["DAILY", "WEEKLY", "MONTHLY"].includes(body.cadence) ? body.cadence : null;
-    if (!title || !cadence || typeof body.active !== "boolean") return invalid("Invalid routine");
+    const schedule = cadence ? routineSchedule(body, cadence) : null;
+    if (!title || !cadence || !schedule || typeof body.active !== "boolean") return invalid("Invalid routine");
     const updated = await db.lifeOSRoutine.updateMany({
       where: { id: body.id, ownerId },
-      data: { title, cadence, notes: text(body.notes, 1000), active: body.active },
+      data: { title, cadence, notes: text(body.notes, 1000), active: body.active, ...schedule },
     });
     if (!updated.count) return fail();
     await activity(ownerId, isDomainKey(body.domainKey) ? body.domainKey : "OMNIS", "ROUTINE", body.id, "UPDATED", `${title} updated`);

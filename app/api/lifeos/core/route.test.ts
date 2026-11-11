@@ -8,7 +8,7 @@ const state = vi.hoisted(() => ({
   activities: [] as Array<Record<string, unknown>>,
   goal: null as null | { id: string; ownerId: string; title: string; purpose: string; nodeType: string; horizon: string; parentId: string | null; done: boolean; targetDate: Date | null; completedAt: Date | null },
   goals: [] as Array<{ id: string; ownerId: string; parentId: string | null }>,
-  routine: null as null | { id: string; ownerId: string; title: string; cadence: string; notes: string; active: boolean },
+  routine: null as null | { id: string; ownerId: string; title: string; cadence: string; notes: string; active: boolean; scheduleTime?: string; scheduleDurationMinutes?: number; scheduleWeekdays?: number[]; scheduleDayOfMonth?: number | null; scheduleStartsOn?: Date | null },
   action: null as null | { id: string; ownerId: string; title: string; status: string },
 }));
 
@@ -149,5 +149,16 @@ describe("LifeOS modular API", () => {
     expect(state.routine).toMatchObject({ title: "Morning walk", notes: "Twenty minutes after breakfast", active: true });
     expect((await PATCH(request("PATCH", { kind: "routine-status", id: "routine-1", domainKey: "HEALTH", active: false }))).status).toBe(200);
     expect(state.routine?.active).toBe(false);
+  });
+
+  it("validates and saves recurring routine calendar schedules", async () => {
+    state.ownerId = "owner-user";
+    state.routine = { id: "routine-1", ownerId: "owner-user", title: "Walk", cadence: "WEEKLY", notes: "", active: true };
+    const response = await PATCH(request("PATCH", { kind: "routine-update", id: "routine-1", domainKey: "HEALTH", title: "Upper body and run", cadence: "WEEKLY", notes: "Train consistently", active: true, scheduleTime: "07:00", scheduleDurationMinutes: 60, scheduleWeekdays: [1], scheduleDayOfMonth: 1, scheduleStartsOn: "2026-11-09" }));
+    expect(response.status).toBe(200);
+    expect(state.routine).toMatchObject({ scheduleTime: "07:00", scheduleDurationMinutes: 60, scheduleWeekdays: [1], scheduleDayOfMonth: null });
+
+    const invalid = await PATCH(request("PATCH", { kind: "routine-update", id: "routine-1", domainKey: "HEALTH", title: "Upper body and run", cadence: "WEEKLY", notes: "", active: true, scheduleTime: "07:00", scheduleDurationMinutes: 60, scheduleWeekdays: [], scheduleStartsOn: "2026-11-09" }));
+    expect(invalid.status).toBe(400);
   });
 });

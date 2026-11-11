@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
 import { DOMAIN_LABELS, type LifeOSDomainKey } from "@/lib/lifeos-domains";
+import { LIFEOS_TIME_ZONE, nowInChicago } from "@/lib/lifeos-time";
 
 type DomainState = { id: string; domainKey: string; currentState: string; desiredState: string; gap: string; activeSystem: string; nextActions: string; evidence: string };
 type Goal = { id: string; title: string; domainKey: string; horizon: string; done: boolean; targetValue: number | null; targetUnit: string; targetDate: string | null };
-type Routine = { id: string; domainKey: string; title: string; cadence: string; active: boolean; notes: string };
+type Routine = { id: string; domainKey: string; title: string; cadence: string; active: boolean; notes: string; scheduleTime: string; scheduleDurationMinutes: number; scheduleWeekdays: number[]; scheduleDayOfMonth: number | null; scheduleStartsOn: string | null };
 type Action = { id: string; domainKey: string; title: string; status: string };
 type Metric = { id: string; domainKey: string; name: string; unit: string; sensitivity: string };
 type Measurement = { id: string; metricId: string; value: number; note: string; observedAt: string };
@@ -16,6 +17,38 @@ type CoreData = { domains: DomainState[]; goals: Goal[]; routines: Routine[]; ac
 const emptyState = { currentState: "", desiredState: "", gap: "", activeSystem: "", nextActions: "", evidence: "" };
 const input = "lifeos-editable mt-1 w-full rounded-lg border border-slate-600 bg-slate-800 p-3 text-base text-slate-100 focus:border-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-300/40";
 const button = "min-h-11 touch-manipulation rounded-lg px-4 py-2 font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300 disabled:opacity-50";
+type ScheduleDraft = { time: string; duration: number; weekdays: number[]; dayOfMonth: number; startsOn: string };
+const weekdayOptions = [[0, "Sun"], [1, "Mon"], [2, "Tue"], [3, "Wed"], [4, "Thu"], [5, "Fri"], [6, "Sat"]] as const;
+
+function newSchedule(): ScheduleDraft {
+  const today = nowInChicago().slice(0, 10);
+  return { time: "", duration: 30, weekdays: [1], dayOfMonth: Number(today.slice(8, 10)), startsOn: today };
+}
+
+function RoutineScheduleFields({ cadence, value, onChange }: { cadence: string; value: ScheduleDraft; onChange: Dispatch<SetStateAction<ScheduleDraft>> }) {
+  const scheduled = Boolean(value.time);
+  return <fieldset className="rounded-xl border border-slate-700 p-3">
+    <legend className="px-1 font-medium">Calendar schedule</legend>
+    <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" checked={scheduled} onChange={(event) => onChange((current) => ({ ...current, time: event.target.checked ? "09:00" : "" }))} className="h-5 w-5 accent-violet-400" />Show this routine on Calendar</label>
+    {scheduled && <div className="mt-3 grid gap-3">
+      {cadence === "WEEKLY" && <fieldset><legend className="text-sm font-medium">Days</legend><div className="mt-2 flex flex-wrap gap-2">{weekdayOptions.map(([day, label]) => <label key={day} className={`flex min-h-11 items-center gap-2 rounded-lg border px-3 ${value.weekdays.includes(day) ? "border-violet-400 bg-violet-950/40" : "border-slate-700"}`}><input type="checkbox" checked={value.weekdays.includes(day)} onChange={() => onChange((current) => ({ ...current, weekdays: current.weekdays.includes(day) ? current.weekdays.filter((item) => item !== day) : [...current.weekdays, day].sort() }))} className="accent-violet-400" />{label}</label>)}</div></fieldset>}
+      {cadence === "MONTHLY" && <label className="text-sm font-medium">Day of month<input type="number" min={1} max={31} value={value.dayOfMonth} onChange={(event) => onChange((current) => ({ ...current, dayOfMonth: Number(event.target.value) }))} className={input} /></label>}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="text-sm font-medium">Time<input required type="time" value={value.time} onChange={(event) => onChange((current) => ({ ...current, time: event.target.value }))} className={input} /></label>
+        <label className="text-sm font-medium">Duration<select value={value.duration} onChange={(event) => onChange((current) => ({ ...current, duration: Number(event.target.value) }))} className={input}><option value={15}>15 minutes</option><option value={30}>30 minutes</option><option value={45}>45 minutes</option><option value={60}>1 hour</option><option value={90}>90 minutes</option><option value={120}>2 hours</option></select></label>
+      </div>
+      <label className="text-sm font-medium">Start showing on<input required type="date" value={value.startsOn} onChange={(event) => onChange((current) => ({ ...current, startsOn: event.target.value }))} className={input} /></label>
+      <p className="text-xs leading-5 text-slate-400">Occurrences use {LIFEOS_TIME_ZONE}. Pausing the routine removes its future appearances from Calendar.</p>
+    </div>}
+  </fieldset>;
+}
+
+function scheduleSummary(routine: Routine) {
+  if (!routine.scheduleTime) return "Not shown on Calendar";
+  const time = new Intl.DateTimeFormat("en-US", { timeZone: "UTC", hour: "numeric", minute: "2-digit" }).format(new Date(`2020-01-01T${routine.scheduleTime}:00.000Z`));
+  const when = routine.cadence === "WEEKLY" ? routine.scheduleWeekdays.map((day) => weekdayOptions.find(([value]) => value === day)?.[1]).filter(Boolean).join(", ") : routine.cadence === "MONTHLY" ? `day ${routine.scheduleDayOfMonth}` : "every day";
+  return `Calendar · ${when} at ${time} · ${routine.scheduleDurationMinutes} min`;
+}
 const stateFields = [
   { label: "Current state", key: "currentState", help: "What is objectively true right now?", placeholder: "Describe the present reality, not the story you wish were true…" },
   { label: "Desired state", key: "desiredState", help: "What should this area consistently look and feel like when it is working well?", placeholder: "Describe the ongoing direction; this is not something you check off…" },
@@ -40,10 +73,12 @@ export default function DomainWorkspace({ domainKey, intro, areas = [] }: { doma
   const [routineTitle, setRoutineTitle] = useState("");
   const [routineCadence, setRoutineCadence] = useState("WEEKLY");
   const [routineNotes, setRoutineNotes] = useState("");
+  const [routineSchedule, setRoutineSchedule] = useState<ScheduleDraft>(newSchedule);
   const [editingRoutineId, setEditingRoutineId] = useState<string | null>(null);
   const [editRoutineTitle, setEditRoutineTitle] = useState("");
   const [editRoutineCadence, setEditRoutineCadence] = useState("WEEKLY");
   const [editRoutineNotes, setEditRoutineNotes] = useState("");
+  const [editRoutineSchedule, setEditRoutineSchedule] = useState<ScheduleDraft>(newSchedule);
   const [actionTitle, setActionTitle] = useState("");
   const [editingActionId, setEditingActionId] = useState<string | null>(null);
   const [editActionTitle, setEditActionTitle] = useState("");
@@ -93,7 +128,10 @@ export default function DomainWorkspace({ domainKey, intro, areas = [] }: { doma
 
   async function saveState(event: FormEvent) { event.preventDefault(); await send("/api/lifeos/core", "POST", { kind: "domain-state", domainKey, ...state }); }
   async function addOutcome(event: FormEvent) { event.preventDefault(); if (await send("/api/lifeos", "POST", { kind: "goal", title: outcomeTitle, targetDate: outcomeTargetDate || null, horizon: "YEAR", domainKey })) { setOutcomeTitle(""); setOutcomeTargetDate(""); } }
-  async function addRoutine(event: FormEvent) { event.preventDefault(); if (await send("/api/lifeos/core", "POST", { kind: "routine", domainKey, title: routineTitle, cadence: routineCadence, notes: routineNotes })) { setRoutineTitle(""); setRoutineNotes(""); } }
+  function schedulePayload(value: ScheduleDraft) {
+    return { scheduleTime: value.time, scheduleDurationMinutes: value.duration, scheduleWeekdays: value.weekdays, scheduleDayOfMonth: value.dayOfMonth, scheduleStartsOn: value.startsOn };
+  }
+  async function addRoutine(event: FormEvent) { event.preventDefault(); if (await send("/api/lifeos/core", "POST", { kind: "routine", domainKey, title: routineTitle, cadence: routineCadence, notes: routineNotes, ...schedulePayload(routineSchedule) })) { setRoutineTitle(""); setRoutineNotes(""); setRoutineSchedule(newSchedule()); } }
   async function addAction(event: FormEvent) { event.preventDefault(); if (await send("/api/lifeos/core", "POST", { kind: "action", domainKey, title: actionTitle })) setActionTitle(""); }
   async function addMetric(event: FormEvent) { event.preventDefault(); if (await send("/api/lifeos/core", "POST", { kind: "metric", domainKey, name: metricName, unit: metricUnit, direction: "NEUTRAL" })) { setMetricName(""); setMetricUnit(""); } }
   async function addMeasurement(event: FormEvent) { event.preventDefault(); if (await send("/api/lifeos/core", "POST", { kind: "measurement", metricId, value: measurementValue, note: measurementNote, observedAt: new Date().toISOString() })) { setMeasurementValue(""); setMeasurementNote(""); } }
@@ -108,7 +146,7 @@ export default function DomainWorkspace({ domainKey, intro, areas = [] }: { doma
   }
 
   async function updateRoutine(routine: Routine) {
-    const saved = await send("/api/lifeos/core", "PATCH", { kind: "routine-update", id: routine.id, domainKey, title: editRoutineTitle, cadence: editRoutineCadence, notes: editRoutineNotes, active: routine.active });
+    const saved = await send("/api/lifeos/core", "PATCH", { kind: "routine-update", id: routine.id, domainKey, title: editRoutineTitle, cadence: editRoutineCadence, notes: editRoutineNotes, active: routine.active, ...schedulePayload(editRoutineSchedule) });
     if (saved) setEditingRoutineId(null);
   }
 
@@ -162,11 +200,22 @@ export default function DomainWorkspace({ domainKey, intro, areas = [] }: { doma
       <section className="rounded-2xl border border-slate-700 bg-slate-900 p-4 sm:p-5">
         <h3 className="text-lg font-semibold">Active system</h3><p className="mt-1 text-sm leading-6 text-slate-400">Routines are recurring behaviors: keep them active while useful, pause them when they are not, and edit them as you learn. Next actions are one-time steps you can finish and reopen.</p>
         <div className="mt-3 grid gap-4 sm:grid-cols-2"><div><h4 className="text-sm font-semibold text-slate-300">Routines</h4>{scoped.routines.length ? scoped.routines.map((item) => <article key={item.id} className="mt-2 rounded-lg border border-slate-800 p-3 text-sm">
-          {editingRoutineId === item.id ? <form onSubmit={(event) => { event.preventDefault(); updateRoutine(item); }} className="grid gap-3"><label>Routine<input required maxLength={180} value={editRoutineTitle} onChange={(event) => setEditRoutineTitle(event.target.value)} className={input} /></label><label>Cadence<select value={editRoutineCadence} onChange={(event) => setEditRoutineCadence(event.target.value)} className={input}><option>DAILY</option><option>WEEKLY</option><option>MONTHLY</option></select></label><label>How to run it<textarea rows={2} maxLength={1000} value={editRoutineNotes} onChange={(event) => setEditRoutineNotes(event.target.value)} className={input} /></label><div className="flex flex-wrap gap-2"><button disabled={busy} className={`${button} bg-violet-400 text-slate-950`}>Save</button><button type="button" onClick={() => setEditingRoutineId(null)} className={`${button} border border-slate-700`}>Cancel</button></div></form> : <><div className="flex items-start justify-between gap-2"><div><p className={item.active ? "font-medium" : "text-slate-500"}>{item.title}</p><p className="mt-1 text-xs text-slate-500">{item.cadence.toLowerCase()} · {item.active ? "active" : "paused"}</p></div><span className={`rounded-full border px-2 py-1 text-xs ${item.active ? "border-violet-800 text-violet-300" : "border-slate-700 text-slate-500"}`}>{item.active ? "Active" : "Paused"}</span></div>{item.notes && <p className="mt-2 text-xs leading-5 text-slate-400">{item.notes}</p>}<div className="mt-3 flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={() => send("/api/lifeos/core", "PATCH", { kind: "routine-status", id: item.id, active: !item.active, domainKey })} className={`${button} border border-slate-700 text-xs`}>{item.active ? "Pause" : "Resume"}</button><button type="button" onClick={() => { setEditingRoutineId(item.id); setEditRoutineTitle(item.title); setEditRoutineCadence(item.cadence); setEditRoutineNotes(item.notes); }} className={`${button} border border-slate-700 text-xs`}>Edit</button></div></>}
+          {editingRoutineId === item.id ? <form onSubmit={(event) => { event.preventDefault(); updateRoutine(item); }} className="grid gap-3">
+            <label>Routine<input required maxLength={180} value={editRoutineTitle} onChange={(event) => setEditRoutineTitle(event.target.value)} className={input} /></label>
+            <label>Cadence<select value={editRoutineCadence} onChange={(event) => setEditRoutineCadence(event.target.value)} className={input}><option>DAILY</option><option>WEEKLY</option><option>MONTHLY</option></select></label>
+            <RoutineScheduleFields cadence={editRoutineCadence} value={editRoutineSchedule} onChange={setEditRoutineSchedule} />
+            <label>How to run it<textarea rows={2} maxLength={1000} value={editRoutineNotes} onChange={(event) => setEditRoutineNotes(event.target.value)} className={input} /></label>
+            <div className="flex flex-wrap gap-2"><button disabled={busy} className={`${button} bg-violet-400 text-slate-950`}>Save</button><button type="button" onClick={() => setEditingRoutineId(null)} className={`${button} border border-slate-700`}>Cancel</button></div>
+          </form> : <>
+            <div className="flex items-start justify-between gap-2"><div><p className={item.active ? "font-medium" : "text-slate-500"}>{item.title}</p><p className="mt-1 text-xs text-slate-500">{item.cadence.toLowerCase()} · {item.active ? "active" : "paused"}</p></div><span className={`rounded-full border px-2 py-1 text-xs ${item.active ? "border-violet-800 text-violet-300" : "border-slate-700 text-slate-500"}`}>{item.active ? "Active" : "Paused"}</span></div>
+            <p className="mt-2 text-xs font-medium text-cyan-300">{scheduleSummary(item)}</p>
+            {item.notes && <p className="mt-2 text-xs leading-5 text-slate-400">{item.notes}</p>}
+            <div className="mt-3 flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={() => send("/api/lifeos/core", "PATCH", { kind: "routine-status", id: item.id, active: !item.active, domainKey })} className={`${button} border border-slate-700 text-xs`}>{item.active ? "Pause" : "Resume"}</button><button type="button" onClick={() => { setEditingRoutineId(item.id); setEditRoutineTitle(item.title); setEditRoutineCadence(item.cadence); setEditRoutineNotes(item.notes); setEditRoutineSchedule({ time: item.scheduleTime, duration: item.scheduleDurationMinutes, weekdays: item.scheduleWeekdays, dayOfMonth: item.scheduleDayOfMonth ?? 1, startsOn: item.scheduleStartsOn?.slice(0, 10) || nowInChicago().slice(0, 10) }); }} className={`${button} border border-slate-700 text-xs`}>Edit</button></div>
+          </>}
         </article>) : <p className="mt-2 rounded-lg border border-dashed border-slate-800 p-3 text-sm text-slate-500">No routines yet.</p>}</div><div><h4 className="text-sm font-semibold text-slate-300">Next actions</h4>{scoped.actions.length ? scoped.actions.map((item) => <article key={item.id} className="mt-2 rounded-lg border border-slate-800 p-3">
           {editingActionId === item.id ? <form onSubmit={(event) => { event.preventDefault(); updateAction(item); }} className="grid gap-3"><label className="text-sm">Next action<input required maxLength={180} value={editActionTitle} onChange={(event) => setEditActionTitle(event.target.value)} className={input} /></label><div className="flex flex-wrap gap-2"><button disabled={busy} className={`${button} bg-violet-400 text-slate-950`}>Save</button><button type="button" onClick={() => setEditingActionId(null)} className={`${button} border border-slate-700`}>Cancel</button></div></form> : <><p className={`text-sm ${item.status === "DONE" ? "text-slate-500 line-through" : ""}`}>{item.title}</p><p className="mt-1 text-xs text-slate-500">{item.status.toLowerCase()}</p><div className="mt-3 flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={() => send("/api/lifeos/core", "PATCH", { kind: "action-status", id: item.id, status: item.status === "DONE" ? "OPEN" : "DONE", domainKey })} className={`${button} border border-slate-700 text-xs`}>{item.status === "DONE" ? "Reopen" : "Done"}</button><button type="button" onClick={() => { setEditingActionId(item.id); setEditActionTitle(item.title); }} className={`${button} border border-slate-700 text-xs`}>Edit</button></div></>}
         </article>) : <p className="mt-2 rounded-lg border border-dashed border-slate-800 p-3 text-sm text-slate-500">No next actions yet.</p>}</div></div>
-        <details className="mt-3"><summary className="min-h-11 cursor-pointer py-2 font-semibold text-violet-300">Add routine or action</summary><div className="mt-2 grid gap-3 sm:grid-cols-2"><form onSubmit={addRoutine}><label className="font-medium">Routine<input required value={routineTitle} onChange={(e) => setRoutineTitle(e.target.value)} className={input} /></label><label className="mt-2 block text-sm">Cadence<select value={routineCadence} onChange={(e) => setRoutineCadence(e.target.value)} className={input}><option>DAILY</option><option>WEEKLY</option><option>MONTHLY</option></select></label><label className="mt-2 block text-sm">How to run it <span className="text-xs text-slate-400">(optional)</span><textarea rows={2} maxLength={1000} value={routineNotes} onChange={(event) => setRoutineNotes(event.target.value)} className={input} placeholder="Define when, where, or what counts…" /></label><button disabled={busy} className={`${button} mt-3 border border-slate-600`}>Add routine</button></form><form onSubmit={addAction}><label className="font-medium">Next action<input required value={actionTitle} onChange={(e) => setActionTitle(e.target.value)} className={input} /></label><p className="mt-2 text-xs leading-5 text-slate-400">Use this for a one-time move. When it is done, mark it complete; use a routine for behavior you intend to repeat.</p><button disabled={busy} className={`${button} mt-3 border border-slate-600`}>Add action</button></form></div></details>
+        <details className="mt-3"><summary className="min-h-11 cursor-pointer py-2 font-semibold text-violet-300">Add routine or action</summary><div className="mt-2 grid gap-3 sm:grid-cols-2"><form onSubmit={addRoutine} className="grid gap-3"><label className="font-medium">Routine<input required value={routineTitle} onChange={(e) => setRoutineTitle(e.target.value)} className={input} /></label><label className="block text-sm">Cadence<select value={routineCadence} onChange={(e) => setRoutineCadence(e.target.value)} className={input}><option>DAILY</option><option>WEEKLY</option><option>MONTHLY</option></select></label><RoutineScheduleFields cadence={routineCadence} value={routineSchedule} onChange={setRoutineSchedule} /><label className="block text-sm">How to run it <span className="text-xs text-slate-400">(optional)</span><textarea rows={2} maxLength={1000} value={routineNotes} onChange={(event) => setRoutineNotes(event.target.value)} className={input} placeholder="Define when, where, or what counts…" /></label><button disabled={busy} className={`${button} border border-slate-600`}>Add routine</button></form><form onSubmit={addAction}><label className="font-medium">Next action<input required value={actionTitle} onChange={(e) => setActionTitle(e.target.value)} className={input} /></label><p className="mt-2 text-xs leading-5 text-slate-400">Use this for a one-time move. When it is done, mark it complete; use a routine for behavior you intend to repeat.</p><button disabled={busy} className={`${button} mt-3 border border-slate-600`}>Add action</button></form></div></details>
       </section>
     </div>
 

@@ -6,6 +6,7 @@ import { LIFEOS_TIME_ZONE, chicagoLocalToUtc, utcToChicagoInput } from "@/lib/li
 import { BLOCK_STATUSES, type BlockStatus, type TimeBlock } from "@/lib/lifeos-blocks";
 import { DOMAIN_LABELS, LIFEOS_DOMAINS, type LifeOSDomainKey } from "@/lib/lifeos-domains";
 import type { ExternalCalendarEvent } from "@/lib/calendar-feeds";
+import type { ScheduledRoutine } from "@/lib/lifeos-routines";
 
 type Goal = {
   id: string;
@@ -53,6 +54,7 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
   const [reviews, setReviews] = useState<Review[]>([]);
   const [blocks, setBlocks] = useState<TimeBlock[]>([]);
   const [externalEvents, setExternalEvents] = useState<ExternalCalendarEvent[]>([]);
+  const [routines, setRoutines] = useState<ScheduledRoutine[]>([]);
   const [projectAgenda, setProjectAgenda] = useState<ProjectAgendaItem[]>([]);
   const [projectAgendaOpen, setProjectAgendaOpen] = useState(false);
   const [horizon, setHorizon] = useState("SPRINT");
@@ -105,6 +107,7 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
     setGoals(data.goals);
     setReviews(data.reviews);
     setBlocks(data.blocks ?? []);
+    setRoutines(data.routines ?? []);
     setExternalEvents(calendarData.events ?? []);
     setProjectAgenda(agendaData.items ?? []);
   }
@@ -445,6 +448,7 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
         goals={goals}
         blocks={blocks}
         externalEvents={externalEvents}
+        routines={routines}
         initialLevel={mode === "timeline" ? "LIFE" : "DAY"}
         onEditGoal={beginSchedule}
         onCreateBlock={(start, end) => showBlockEditor(start, end)}
