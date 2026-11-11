@@ -11,12 +11,14 @@ export default async function EditClientPage(props: { params: Promise<{ id: stri
   if (!client) notFound();
 
   return (
-    <main className="p-8 max-w-lg mx-auto">
-      <Link href="/clients" className="text-sm text-slate-400 hover:text-slate-700">
+    <main className="lp-page-narrow">
+      <Link href="/clients" className="lp-link text-sm">
         ← Back to clients
       </Link>
-      <h1 className="text-xl font-semibold text-slate-900 mb-6 mt-2">Edit client</h1>
-      <ClientEditForm client={client} />
+      <p className="lp-eyebrow mt-5">Relationships</p>
+      <h1 className="lp-title">Edit client</h1>
+      <p className="lp-subtitle">Keep contact details and portal identity current.</p>
+      <div className="lp-card mt-6"><ClientEditForm client={client} /></div>
     </main>
   );
 }

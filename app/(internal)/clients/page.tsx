@@ -19,21 +19,23 @@ export default async function ClientsPage(
   });
 
   return (
-    <main className="p-8 max-w-6xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-semibold text-slate-900">
-          {showArchived ? "Archived clients" : "Clients"}
-        </h1>
-        <div className="flex items-center gap-4">
+    <main className="lp-page">
+      <div className="lp-page-header">
+        <div>
+          <p className="lp-eyebrow">Relationships</p>
+          <h1 className="lp-title">{showArchived ? "Archived clients" : "Clients"}</h1>
+          <p className="lp-subtitle">Manage client details, portal access, and the projects connected to each relationship.</p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
           <Link
             href={showArchived ? "/clients" : "/clients?archived=1"}
-            className="text-sm text-slate-400 hover:text-slate-700"
+            className="lp-button-secondary"
           >
-            {showArchived ? "← Back to active clients" : "View archived →"}
+            {showArchived ? "← Back to active clients" : "View archived"}
           </Link>
           <Link
             href="/clients/new"
-            className="bg-slate-900 text-white rounded px-3 py-1.5 text-sm font-medium"
+            className="lp-button-primary"
           >
             + New client
           </Link>

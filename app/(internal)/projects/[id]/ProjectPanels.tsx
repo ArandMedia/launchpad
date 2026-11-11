@@ -206,8 +206,8 @@ export default function ProjectPanels({
 
   return (
     <>
-      <section className="mb-8">
-        <h2 className="text-sm font-semibold text-slate-700 mb-2 uppercase tracking-wide">
+      <section className="lp-card mb-5">
+        <h2 className="lp-section-heading mb-3">
           Tasks
         </h2>
         <div className="grid gap-2 mb-3">
@@ -215,7 +215,7 @@ export default function ProjectPanels({
             <div
               key={t.id}
               onClick={() => toggleTask(t)}
-              className="flex justify-between items-center border border-slate-200 rounded px-4 py-2 text-sm cursor-pointer hover:border-slate-400 transition-colors"
+              className="flex cursor-pointer flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm transition-colors hover:border-violet-300"
             >
               <span className={t.status === "DONE" ? "line-through text-slate-400" : ""}>
                 {t.title}
@@ -233,9 +233,9 @@ export default function ProjectPanels({
           ))}
           {tasks.length === 0 && <p className="text-sm text-slate-400">No tasks yet.</p>}
         </div>
-        <form onSubmit={addTask} className="flex gap-2">
+        <form onSubmit={addTask} className="flex flex-wrap gap-2">
           <input
-            className="border border-slate-300 rounded px-3 py-1.5 text-sm flex-1"
+            className="lp-input min-w-[14rem] flex-1"
             placeholder="New task"
             value={taskTitle}
             onChange={(e) => setTaskTitle(e.target.value)}
@@ -243,15 +243,15 @@ export default function ProjectPanels({
           <button
             type="submit"
             disabled={taskBusy}
-            className="bg-slate-900 text-white rounded px-3 py-1.5 text-sm disabled:opacity-50"
+            className="lp-button-primary"
           >
             Add
           </button>
         </form>
       </section>
 
-      <section className="mb-8">
-        <h2 className="text-sm font-semibold text-slate-700 mb-2 uppercase tracking-wide">
+      <section className="lp-card mb-5">
+        <h2 className="lp-section-heading mb-3">
           Milestones
         </h2>
         <div className="grid gap-2 mb-3">
@@ -259,7 +259,7 @@ export default function ProjectPanels({
             <div
               key={m.id}
               onClick={() => toggleMilestone(m)}
-              className="flex justify-between items-center border border-slate-200 rounded px-4 py-2 text-sm cursor-pointer hover:border-slate-400 transition-colors"
+              className="flex cursor-pointer flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm transition-colors hover:border-violet-300"
             >
               <span className={m.completedAt ? "line-through text-slate-400" : ""}>{m.title}</span>
               <span className="flex items-center gap-3">
@@ -284,31 +284,31 @@ export default function ProjectPanels({
             <p className="text-sm text-slate-400">No milestones yet.</p>
           )}
         </div>
-        <form onSubmit={addMilestone} className="flex gap-2">
+        <form onSubmit={addMilestone} className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_12rem_auto]">
           <input
-            className="border border-slate-300 rounded px-3 py-1.5 text-sm flex-1"
+            className="lp-input"
             placeholder="New milestone"
             value={milestoneTitle}
             onChange={(e) => setMilestoneTitle(e.target.value)}
           />
           <input
             type="date"
-            className="border border-slate-300 rounded px-3 py-1.5 text-sm"
+            className="lp-input"
             value={milestoneDate}
             onChange={(e) => setMilestoneDate(e.target.value)}
           />
           <button
             type="submit"
             disabled={milestoneBusy}
-            className="bg-slate-900 text-white rounded px-3 py-1.5 text-sm disabled:opacity-50"
+            className="lp-button-primary"
           >
             Add
           </button>
         </form>
       </section>
 
-      <section>
-        <h2 className="text-sm font-semibold text-slate-700 mb-2 uppercase tracking-wide">
+      <section className="lp-card mb-5">
+        <h2 className="lp-section-heading mb-2">
           Update log
         </h2>
         <p className="text-xs text-slate-400 mb-3">
@@ -316,7 +316,7 @@ export default function ProjectPanels({
         </p>
         <div className="grid gap-2 mb-3">
           {updates.map((u) => (
-            <div key={u.id} className="border border-slate-200 rounded px-4 py-3 text-sm">
+            <div key={u.id} className="rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm">
               <div className="flex items-start justify-between gap-3">
                 <p>{u.body}</p>
                 <button
@@ -336,7 +336,7 @@ export default function ProjectPanels({
         </div>
         <form onSubmit={postUpdate} className="grid gap-2">
           <textarea
-            className="border border-slate-300 rounded px-3 py-2 text-sm"
+            className="lp-input"
             placeholder="Write an update…"
             rows={3}
             value={updateBody}
@@ -353,15 +353,15 @@ export default function ProjectPanels({
           <button
             type="submit"
             disabled={updateBusy}
-            className="bg-slate-900 text-white rounded px-3 py-1.5 text-sm w-fit disabled:opacity-50"
+            className="lp-button-primary w-fit"
           >
             Post update
           </button>
         </form>
       </section>
 
-      <section className="mt-8">
-        <h2 className="text-sm font-semibold text-slate-700 mb-2 uppercase tracking-wide">
+      <section className="lp-card">
+        <h2 className="lp-section-heading mb-2">
           Documents
         </h2>
         <p className="text-xs text-slate-400 mb-3">
@@ -372,7 +372,7 @@ export default function ProjectPanels({
           {documents.map((d) => (
             <div
               key={d.id}
-              className="flex items-center justify-between border border-slate-200 rounded px-4 py-2.5 text-sm"
+              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-slate-50/70 px-4 py-3 text-sm"
             >
               <div className="min-w-0">
                 <div className="flex items-center gap-2">
@@ -413,16 +413,16 @@ export default function ProjectPanels({
             <p className="text-sm text-slate-400">No documents uploaded yet.</p>
           )}
         </div>
-        <form onSubmit={uploadDocument} className="grid gap-2 border border-slate-200 rounded-lg p-4">
-          <div className="flex gap-2">
+        <form onSubmit={uploadDocument} className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+          <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_10rem]">
             <input
-              className="border border-slate-300 rounded px-3 py-1.5 text-sm flex-1"
+              className="lp-input"
               placeholder="Document title (e.g. Master Services Agreement)"
               value={docTitle}
               onChange={(e) => setDocTitle(e.target.value)}
             />
             <select
-              className="border border-slate-300 rounded px-3 py-1.5 text-sm"
+              className="lp-input"
               value={docCategory}
               onChange={(e) => setDocCategory(e.target.value)}
             >
@@ -449,7 +449,7 @@ export default function ProjectPanels({
           <button
             type="submit"
             disabled={docBusy}
-            className="bg-slate-900 text-white rounded px-3 py-1.5 text-sm w-fit disabled:opacity-50"
+            className="lp-button-primary w-fit"
           >
             {docBusy ? "Uploading…" : "Upload document"}
           </button>

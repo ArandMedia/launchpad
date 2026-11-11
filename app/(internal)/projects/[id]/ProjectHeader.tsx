@@ -92,29 +92,29 @@ export default function ProjectHeader({
 
   if (editing) {
     return (
-      <form onSubmit={save} className="mb-6 mt-2 grid gap-2 border border-slate-200 rounded-lg p-4 bg-white">
+      <form onSubmit={save} className="lp-card mb-6 mt-5 grid gap-4">
         <input
-          className="border border-slate-300 rounded px-3 py-1.5 text-sm font-medium"
+          className="lp-input font-medium"
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
         />
         <textarea
-          className="border border-slate-300 rounded px-3 py-1.5 text-sm"
+          className="lp-input"
           placeholder="Description"
           rows={2}
           value={description}
           onChange={(e) => setDescription(e.target.value)}
         />
 
-        <div className="border border-slate-200 rounded p-3 grid gap-2 bg-slate-50">
+        <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
           <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
             Scope (shown to the client too)
           </p>
           <label className="text-xs text-slate-500">
             Problem
             <textarea
-              className="border border-slate-300 rounded px-3 py-1.5 text-sm w-full mt-1"
+              className="lp-input mt-1"
               placeholder="What problem are we solving?"
               rows={2}
               value={problem}
@@ -124,7 +124,7 @@ export default function ProjectHeader({
           <label className="text-xs text-slate-500">
             Solution
             <textarea
-              className="border border-slate-300 rounded px-3 py-1.5 text-sm w-full mt-1"
+              className="lp-input mt-1"
               placeholder="What are we building?"
               rows={2}
               value={solution}
@@ -134,7 +134,7 @@ export default function ProjectHeader({
           <label className="text-xs text-slate-500">
             Desired outcome
             <textarea
-              className="border border-slate-300 rounded px-3 py-1.5 text-sm w-full mt-1"
+              className="lp-input mt-1"
               placeholder="What does done look like?"
               rows={2}
               value={desiredOutcome}
@@ -143,9 +143,9 @@ export default function ProjectHeader({
           </label>
         </div>
 
-        <div className="flex gap-2">
+        <div className="grid gap-3 sm:grid-cols-3">
           <select
-            className="border border-slate-300 rounded px-3 py-1.5 text-sm"
+            className="lp-input"
             value={status}
             onChange={(e) => setStatus(e.target.value)}
           >
@@ -157,13 +157,13 @@ export default function ProjectHeader({
           </select>
           <input
             type="date"
-            className="border border-slate-300 rounded px-3 py-1.5 text-sm"
+            className="lp-input"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
           />
           <input
             type="date"
-            className="border border-slate-300 rounded px-3 py-1.5 text-sm"
+            className="lp-input"
             value={targetDate}
             onChange={(e) => setTargetDate(e.target.value)}
           />
@@ -172,14 +172,14 @@ export default function ProjectHeader({
           <button
             type="submit"
             disabled={busy}
-            className="bg-slate-900 text-white rounded px-3 py-1.5 text-sm w-fit disabled:opacity-50"
+            className="lp-button-primary"
           >
             Save
           </button>
           <button
             type="button"
             onClick={() => setEditing(false)}
-            className="text-sm text-slate-500 px-3 py-1.5"
+            className="lp-button-secondary"
           >
             Cancel
           </button>
@@ -189,13 +189,13 @@ export default function ProjectHeader({
   }
 
   return (
-    <div className="mb-6 mt-2">
-      <div className="flex items-start justify-between">
+    <div className="lp-card mb-6 mt-5">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-semibold text-slate-900">{project.name}</h1>
+            <h1 className="text-3xl font-bold tracking-tight text-slate-950">{project.name}</h1>
             {project.archivedAt && (
-              <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">
+              <span className="lp-badge border-slate-200 bg-slate-100 text-slate-600">
                 Archived
               </span>
             )}
@@ -235,14 +235,14 @@ export default function ProjectHeader({
             </div>
           )}
         </div>
-        <div className="flex items-center gap-3 shrink-0">
-          <button onClick={() => setEditing(true)} className="text-sm text-slate-500 hover:underline">
+        <div className="flex flex-wrap items-center gap-1 shrink-0">
+          <button onClick={() => setEditing(true)} className="lp-button-secondary">
             Edit
           </button>
-          <button onClick={toggleArchive} className="text-sm text-slate-500 hover:underline">
+          <button onClick={toggleArchive} className="lp-button-ghost">
             {project.archivedAt ? "Unarchive" : "Archive"}
           </button>
-          <button onClick={deleteProject} className="text-sm text-red-500 hover:underline">
+          <button onClick={deleteProject} className="inline-flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 hover:text-red-800">
             Delete
           </button>
         </div>
