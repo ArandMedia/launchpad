@@ -10,6 +10,7 @@ const links = [
   ["Self & Purpose", "/lifeos/self", "Identity · Learning · Principles"],
   ["ArandMedia", "/lifeos/arandmedia", "Portfolio alignment"],
   ["Operation OMNIS", "/lifeos/omnis", "Mission · Strategy"],
+  ["Journal & Notes", "/lifeos/journal", "Pencil · Search"],
   ["Insights", "/lifeos/insights", "Reviews · Evidence"],
   ["Settings", "/settings", "Account · Integrations"],
 ] as const;

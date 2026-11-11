@@ -461,3 +461,21 @@ model LifeOSActivity {
   @@index([ownerId, createdAt])
   @@index([ownerId, domainKey, createdAt])
 }
+
+// Private searchable writing. Apple Pencil ink is stored beside the typed or
+// Scribble-converted text; text remains the searchable source of truth.
+model LifeOSJournalEntry {
+  id         String   @id @default(cuid())
+  ownerId    String
+  kind       String   @default("NOTE")
+  title      String
+  body       String   @default("")
+  tags       String[] @default([])
+  inkData    String   @default("")
+  occurredOn DateTime @db.Date
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([ownerId, occurredOn])
+  @@index([ownerId, kind, updatedAt])
+}
