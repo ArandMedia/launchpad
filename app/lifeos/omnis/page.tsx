@@ -1,9 +1,15 @@
 import DomainWorkspace from "../domain-workspace";
 import SectionHeader from "../section-header";
+import OmnisMindMap from "./omnis-mind-map";
 
 export default function OmnisPage() {
   return <>
-    <SectionHeader eyebrow="Mission" title="Operation OMNIS" description="Maintain the mission, strategic gaps, active systems, and evidence that connect the whole Calendar. Existing unclassified goals remain here for compatibility." />
-    <DomainWorkspace domainKey="OMNIS" />
+    <SectionHeader eyebrow="Mission" title="Operation OMNIS" description="See what must be built, why it matters, how each outcome connects, and where it belongs on the same timeline that guides execution." />
+    <OmnisMindMap />
+    <details className="mt-5 rounded-2xl border border-slate-700 bg-slate-900 p-4 sm:p-5">
+      <summary className="min-h-11 cursor-pointer py-2 text-lg font-semibold text-violet-300">Strategy details & evidence</summary>
+      <p className="mt-1 text-sm leading-6 text-slate-400">Open the deeper operating-state, routines, next actions, evidence, and principles that support the visual mission map.</p>
+      <DomainWorkspace domainKey="OMNIS" />
+    </details>
   </>;
 }

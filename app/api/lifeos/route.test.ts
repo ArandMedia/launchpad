@@ -5,6 +5,7 @@ type StoredGoal = {
   id: string;
   ownerId: string;
   title: string;
+  purpose?: string;
   horizon: string;
   parentId: string | null;
   done: boolean;
@@ -218,7 +219,7 @@ describe("LifeOS API", () => {
       updatedAt: new Date(),
     });
 
-    const rootResponse = await POST(request("POST", { kind: "goal", title: "  Operation OMNIS  ", horizon: "LIFETIME" }));
+    const rootResponse = await POST(request("POST", { kind: "goal", title: "  Operation OMNIS  ", purpose: "Connect every major system", horizon: "LIFETIME" }));
     const root = (await rootResponse.json()).goal as StoredGoal;
     const childResponse = await POST(request("POST", { kind: "goal", title: "Annual outcome", horizon: "YEAR", parentId: root.id }));
     const child = (await childResponse.json()).goal as StoredGoal;
@@ -226,6 +227,7 @@ describe("LifeOS API", () => {
 
     expect(rootResponse.status).toBe(201);
     expect(root.title).toBe("Operation OMNIS");
+    expect(root.purpose).toBe("Connect every major system");
     expect(root.domainKey).toBe("OMNIS");
     expect(childResponse.status).toBe(201);
     expect(child.parentId).toBe(root.id);

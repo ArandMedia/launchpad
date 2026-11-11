@@ -6,7 +6,8 @@ const state = vi.hoisted(() => ({
   metric: null as null | { id: string; ownerId: string; domainKey: string; name: string },
   healthData: null as null | Record<string, unknown>,
   activities: [] as Array<Record<string, unknown>>,
-  goal: null as null | { id: string; ownerId: string; title: string; done: boolean; targetDate: Date | null; completedAt: Date | null },
+  goal: null as null | { id: string; ownerId: string; title: string; purpose: string; horizon: string; parentId: string | null; done: boolean; targetDate: Date | null; completedAt: Date | null },
+  goals: [] as Array<{ id: string; ownerId: string; parentId: string | null }>,
   routine: null as null | { id: string; ownerId: string; title: string; cadence: string; notes: string; active: boolean },
   action: null as null | { id: string; ownerId: string; title: string; status: string },
 }));
@@ -32,6 +33,7 @@ vi.mock("@/lib/db", () => ({
       create: vi.fn(async ({ data }) => { state.activities.push(data); return { id: `activity-${state.activities.length}`, ...data }; }),
     },
     lifeOSGoal: {
+      findMany: vi.fn(async ({ where }) => state.goals.filter((goal) => goal.ownerId === where.ownerId)),
       updateMany: vi.fn(async ({ where, data }) => {
         if (!state.goal || state.goal.id !== where.id || state.goal.ownerId !== where.ownerId) return { count: 0 };
         Object.assign(state.goal, data);
@@ -72,6 +74,7 @@ describe("LifeOS modular API", () => {
     state.healthData = null;
     state.activities.length = 0;
     state.goal = null;
+    state.goals.length = 0;
     state.routine = null;
     state.action = null;
     process.env.LIFEOS_HEALTH_ENCRYPTION_KEY = "test-health-key-with-at-least-24-characters";
@@ -110,13 +113,30 @@ describe("LifeOS modular API", () => {
 
   it("edits and completes outcomes while preserving owner scope and target dates", async () => {
     state.ownerId = "owner-user";
-    state.goal = { id: "goal-1", ownerId: "owner-user", title: "Old title", done: false, targetDate: null, completedAt: null };
+    state.goal = { id: "goal-1", ownerId: "owner-user", title: "Old title", purpose: "", horizon: "YEAR", parentId: null, done: false, targetDate: null, completedAt: null };
     const response = await PATCH(request("PATCH", { kind: "goal-update", id: "goal-1", domainKey: "HEALTH", title: "Run a 5K", targetDate: "2027-04-10", done: true }));
     expect(response.status).toBe(200);
     expect(state.goal).toMatchObject({ title: "Run a 5K", done: true });
     expect(state.goal?.targetDate?.toISOString().slice(0, 10)).toBe("2027-04-10");
     expect(state.goal?.completedAt).toBeInstanceOf(Date);
     expect((await PATCH(request("PATCH", { kind: "goal-update", id: "goal-1", title: "Bad", targetDate: "2027-02-30", done: false }))).status).toBe(400);
+  });
+
+  it("updates a mind-map purpose and connection while preventing loops", async () => {
+    state.ownerId = "owner-user";
+    state.goal = { id: "goal-child", ownerId: "owner-user", title: "Build the platform", purpose: "", horizon: "YEAR", parentId: null, done: false, targetDate: null, completedAt: null };
+    state.goals.push(
+      { id: "goal-root", ownerId: "owner-user", parentId: null },
+      { id: "goal-child", ownerId: "owner-user", parentId: "goal-root" },
+      { id: "goal-grandchild", ownerId: "owner-user", parentId: "goal-child" },
+    );
+
+    const response = await PATCH(request("PATCH", { kind: "goal-update", id: "goal-child", domainKey: "OMNIS", title: "Build the platform", purpose: "Connect the operating system", horizon: "PHASE", parentId: "goal-root", targetDate: null, done: false }));
+    expect(response.status).toBe(200);
+    expect(state.goal).toMatchObject({ purpose: "Connect the operating system", horizon: "PHASE", parentId: "goal-root" });
+
+    const cycle = await PATCH(request("PATCH", { kind: "goal-update", id: "goal-child", domainKey: "OMNIS", title: "Build the platform", purpose: "", horizon: "PHASE", parentId: "goal-grandchild", targetDate: null, done: false }));
+    expect(cycle.status).toBe(400);
   });
 
   it("edits and pauses routines without deleting their history", async () => {
