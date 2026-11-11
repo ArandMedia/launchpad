@@ -10,7 +10,8 @@ type Routine = { id: string; domainKey: string; title: string; cadence: string; 
 type Action = { id: string; domainKey: string; title: string; status: string };
 type Metric = { id: string; domainKey: string; name: string; unit: string; sensitivity: string };
 type Measurement = { id: string; metricId: string; value: number; note: string; observedAt: string };
-type Principle = { id: string; domainKey: string; title: string; statement: string };
+type SelfKnowledgeKind = "VALUE" | "CONVICTION" | "STRENGTH" | "GROWTH_EDGE";
+type Principle = { id: string; domainKey: string; kind: SelfKnowledgeKind; title: string; statement: string; why: string; importance: number; active: boolean; updatedAt: string };
 type Commitment = { id: string; area: string; title: string; cadence: string; note: string };
 type CoreData = { domains: DomainState[]; goals: Goal[]; routines: Routine[]; actions: Action[]; metrics: Metric[]; measurements: Measurement[]; healthMeasurements: Measurement[]; principles: Principle[]; commitments: Commitment[] };
 
@@ -57,6 +58,28 @@ const stateFields = [
   { label: "Next actions", key: "nextActions", help: "What concrete one-time moves happen next?", placeholder: "List the next few actions that move the gap…" },
   { label: "Evidence", key: "evidence", help: "What facts will show that the system is working?", placeholder: "Define observations or measurements you will review…" },
 ] as const;
+const selfStateFields = [
+  { label: "Current season", key: "currentState", help: "What season of life are you in, and what is asking for your attention now?", placeholder: "Describe the realities, roles, opportunities, and pressures shaping this season…" },
+  { label: "Person I am becoming", key: "desiredState", help: "What kind of person do you intend to become—not just what do you want to accomplish?", placeholder: "Describe the character, identity, and way of living you are growing toward…" },
+  { label: "Tensions & blind spots", key: "gap", help: "Where do your behavior, beliefs, or circumstances conflict with who you want to be?", placeholder: "Name contradictions, recurring patterns, and things you may be avoiding…" },
+  { label: "Practices that keep me aligned", key: "activeSystem", help: "What regular practices help you act like the person you intend to be?", placeholder: "Reflection, study, boundaries, conversations, routines, service…" },
+  { label: "Decisions & experiments", key: "nextActions", help: "What will you try, decide, or discuss next to learn about yourself?", placeholder: "List the next honest conversation, experiment, or decision…" },
+  { label: "What life is teaching me", key: "evidence", help: "What recent evidence is changing how you understand yourself or the world?", placeholder: "Record lessons, feedback, recurring signals, and changed beliefs…" },
+] as const;
+const selfKnowledgeKinds: Array<{ kind: SelfKnowledgeKind; label: string; shortLabel: string; help: string; accent: string }> = [
+  { kind: "VALUE", label: "Value", shortLabel: "What matters", help: "A quality or priority you want your choices to honor.", accent: "border-violet-700 bg-violet-950/30 text-violet-200" },
+  { kind: "CONVICTION", label: "Conviction", shortLabel: "What I believe", help: "A belief or principle you are willing to let constrain your choices.", accent: "border-sky-700 bg-sky-950/30 text-sky-200" },
+  { kind: "STRENGTH", label: "Strength", shortLabel: "What I can lean on", help: "A capability or pattern that consistently helps you and others.", accent: "border-emerald-700 bg-emerald-950/30 text-emerald-200" },
+  { kind: "GROWTH_EDGE", label: "Shortcoming / growth edge", shortLabel: "What needs attention", help: "A limitation, blind spot, or pattern you want to notice and improve.", accent: "border-amber-700 bg-amber-950/30 text-amber-200" },
+];
+
+function importanceLabel(value: number) {
+  if (value >= 5) return "Essential now";
+  if (value === 4) return "High importance";
+  if (value === 3) return "Meaningful";
+  if (value === 2) return "Secondary";
+  return "Low right now";
+}
 
 export default function DomainWorkspace({ domainKey, intro, areas = [] }: { domainKey: LifeOSDomainKey; intro?: string; areas?: string[] }) {
   const relationshipAreas = areas.length ? areas : ["Family", "Friends", "Community"];
@@ -89,8 +112,17 @@ export default function DomainWorkspace({ domainKey, intro, areas = [] }: { doma
   const [metricId, setMetricId] = useState("");
   const [measurementValue, setMeasurementValue] = useState("");
   const [measurementNote, setMeasurementNote] = useState("");
+  const [principleKind, setPrincipleKind] = useState<SelfKnowledgeKind>("VALUE");
   const [principleTitle, setPrincipleTitle] = useState("");
   const [principleStatement, setPrincipleStatement] = useState("");
+  const [principleWhy, setPrincipleWhy] = useState("");
+  const [principleImportance, setPrincipleImportance] = useState(4);
+  const [editingPrincipleId, setEditingPrincipleId] = useState<string | null>(null);
+  const [editPrincipleKind, setEditPrincipleKind] = useState<SelfKnowledgeKind>("VALUE");
+  const [editPrincipleTitle, setEditPrincipleTitle] = useState("");
+  const [editPrincipleStatement, setEditPrincipleStatement] = useState("");
+  const [editPrincipleWhy, setEditPrincipleWhy] = useState("");
+  const [editPrincipleImportance, setEditPrincipleImportance] = useState(3);
   const [commitmentTitle, setCommitmentTitle] = useState("");
   const [commitmentArea, setCommitmentArea] = useState(relationshipAreas[0]);
   const [commitmentCadence, setCommitmentCadence] = useState("");
@@ -132,6 +164,9 @@ export default function DomainWorkspace({ domainKey, intro, areas = [] }: { doma
   const activeOutcomes = scoped.goals.filter((goal) => !goal.done);
   const soleActiveOutcome = activeOutcomes.length === 1 ? activeOutcomes[0] : null;
   const routineObjectiveTitle = (routine: Routine) => routine.objective?.title || soleActiveOutcome?.title || "";
+  const profileFields = domainKey === "SELF" ? selfStateFields : stateFields;
+  const sortedKnowledge = [...scoped.principles].sort((left, right) => Number(right.active) - Number(left.active) || right.importance - left.importance || left.title.localeCompare(right.title));
+  const compass = Object.fromEntries(selfKnowledgeKinds.map(({ kind }) => [kind, sortedKnowledge.find((item) => item.active && item.kind === kind)])) as Partial<Record<SelfKnowledgeKind, Principle>>;
 
   async function saveState(event: FormEvent) { event.preventDefault(); await send("/api/lifeos/core", "POST", { kind: "domain-state", domainKey, ...state }); }
   async function addOutcome(event: FormEvent) { event.preventDefault(); if (await send("/api/lifeos", "POST", { kind: "goal", title: outcomeTitle, targetDate: outcomeTargetDate || null, horizon: "YEAR", domainKey })) { setOutcomeTitle(""); setOutcomeTargetDate(""); } }
@@ -142,7 +177,7 @@ export default function DomainWorkspace({ domainKey, intro, areas = [] }: { doma
   async function addAction(event: FormEvent) { event.preventDefault(); if (await send("/api/lifeos/core", "POST", { kind: "action", domainKey, title: actionTitle })) setActionTitle(""); }
   async function addMetric(event: FormEvent) { event.preventDefault(); if (await send("/api/lifeos/core", "POST", { kind: "metric", domainKey, name: metricName, unit: metricUnit, direction: "NEUTRAL" })) { setMetricName(""); setMetricUnit(""); } }
   async function addMeasurement(event: FormEvent) { event.preventDefault(); if (await send("/api/lifeos/core", "POST", { kind: "measurement", metricId, value: measurementValue, note: measurementNote, observedAt: new Date().toISOString() })) { setMeasurementValue(""); setMeasurementNote(""); } }
-  async function addPrinciple(event: FormEvent) { event.preventDefault(); if (await send("/api/lifeos/core", "POST", { kind: "principle", domainKey, title: principleTitle, statement: principleStatement })) { setPrincipleTitle(""); setPrincipleStatement(""); } }
+  async function addPrinciple(event: FormEvent) { event.preventDefault(); if (await send("/api/lifeos/core", "POST", { kind: "principle", domainKey, principleKind: domainKey === "SELF" ? principleKind : "CONVICTION", title: principleTitle, statement: principleStatement, why: principleWhy, importance: principleImportance })) { setPrincipleTitle(""); setPrincipleStatement(""); setPrincipleWhy(""); } }
   async function addCommitment(event: FormEvent) { event.preventDefault(); if (await send("/api/lifeos/core", "POST", { kind: "commitment", title: commitmentTitle, area: commitmentArea, cadence: commitmentCadence })) { setCommitmentTitle(""); setCommitmentCadence(""); } }
 
   async function updateOutcome(goal: Goal, done = goal.done) {
@@ -162,31 +197,58 @@ export default function DomainWorkspace({ domainKey, intro, areas = [] }: { doma
     if (saved) setEditingActionId(null);
   }
 
+  async function updatePrinciple(principle: Principle, active = principle.active) {
+    const editing = editingPrincipleId === principle.id;
+    const saved = await send("/api/lifeos/core", "PATCH", {
+      kind: "principle-update", id: principle.id, domainKey,
+      principleKind: editing ? editPrincipleKind : principle.kind,
+      title: editing ? editPrincipleTitle : principle.title,
+      statement: editing ? editPrincipleStatement : principle.statement,
+      why: editing ? editPrincipleWhy : principle.why,
+      importance: editing ? editPrincipleImportance : principle.importance,
+      active,
+    });
+    if (saved) setEditingPrincipleId(null);
+  }
+
   if (!data && !error) return <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6 text-slate-400" role="status">Loading {DOMAIN_LABELS[domainKey]}…</div>;
 
   return <div className="mt-5 space-y-5">
     <p className="sr-only" role="status" aria-live="polite">{status}</p>
     {error && <p role="alert" className="rounded-xl border border-red-600 p-3 text-red-300">{error}</p>}
     <section className="rounded-2xl border border-violet-800 bg-violet-950/20 p-4 sm:p-5" aria-labelledby="workspace-guide-heading">
-      <h3 id="workspace-guide-heading" className="text-lg font-semibold">How this workspace works</h3>
+      <h3 id="workspace-guide-heading" className="text-lg font-semibold">{domainKey === "SELF" ? "A living reflection—not a permanent label" : "How this workspace works"}</h3>
       <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <div className="rounded-xl border border-slate-700 bg-slate-900/70 p-3"><p className="text-xs font-bold uppercase tracking-wide text-violet-300">1 · Map reality</p><p className="mt-1 text-sm text-slate-300">Current state, desired state, and the gap explain where you are and the direction you want to maintain.</p></div>
-        <div className="rounded-xl border border-slate-700 bg-slate-900/70 p-3"><p className="text-xs font-bold uppercase tracking-wide text-violet-300">2 · Choose outcomes</p><p className="mt-1 text-sm text-slate-300">A desired outcome is a finite result you can finish. Give it a target date when timing matters.</p></div>
-        <div className="rounded-xl border border-slate-700 bg-slate-900/70 p-3"><p className="text-xs font-bold uppercase tracking-wide text-violet-300">3 · Run a system</p><p className="mt-1 text-sm text-slate-300">Routines repeat and stay active or paused. Next actions are one-time moves you complete.</p></div>
-        <div className="rounded-xl border border-slate-700 bg-slate-900/70 p-3"><p className="text-xs font-bold uppercase tracking-wide text-violet-300">4 · Review evidence</p><p className="mt-1 text-sm text-slate-300">Use measurements and notes to decide whether the system is actually moving the gap.</p></div>
+        {(domainKey === "SELF" ? [
+          ["1 · Reflect", "Describe the season you are actually in and the person you are becoming."],
+          ["2 · Name", "Capture values, convictions, strengths, and shortcomings without turning them into fixed labels."],
+          ["3 · Rank", "Adjust importance as your responsibilities, age, and circumstances change."],
+          ["4 · Use", "Let the decision compass shape outcomes, habits, boundaries, and what you say no to."],
+        ] : [
+          ["1 · Map reality", "Current state, desired state, and the gap explain where you are and the direction you want to maintain."],
+          ["2 · Choose outcomes", "A desired outcome is a finite result you can finish. Give it a target date when timing matters."],
+          ["3 · Run a system", "Routines repeat and stay active or paused. Next actions are one-time moves you complete."],
+          ["4 · Review evidence", "Use measurements and notes to decide whether the system is actually moving the gap."],
+        ]).map(([title, copy]) => <div key={title} className="rounded-xl border border-slate-700 bg-slate-900/70 p-3"><p className="text-xs font-bold uppercase tracking-wide text-violet-300">{title}</p><p className="mt-1 text-sm text-slate-300">{copy}</p></div>)}
       </div>
     </section>
     <section className="rounded-2xl border border-slate-700 bg-slate-900 p-4 sm:p-5">
-      <h3 className="text-lg font-semibold">Operating state</h3><p className="mt-1 text-sm text-slate-400">{intro || `Close the loop for ${DOMAIN_LABELS[domainKey]} with explicit state, systems, actions, and evidence.`}</p>
+      <h3 className="text-lg font-semibold">{domainKey === "SELF" ? "Living self-profile" : "Operating state"}</h3><p className="mt-1 text-sm text-slate-400">{domainKey === "SELF" ? "Update this when your season changes or experience changes your mind. The goal is an honest working picture, not a final definition of you." : intro || `Close the loop for ${DOMAIN_LABELS[domainKey]} with explicit state, systems, actions, and evidence.`}</p>
       <form onSubmit={saveState} className="mt-4 grid gap-4 md:grid-cols-2">
-        {stateFields.map((field) => <label key={field.key} className="font-medium">{field.label}<span className="mt-1 block text-xs font-normal leading-5 text-slate-400">{field.help}</span><textarea rows={3} maxLength={6000} value={state[field.key]} onChange={(event) => setState((current) => ({ ...current, [field.key]: event.target.value }))} className={input} placeholder={field.placeholder} /></label>)}
-        <div className="md:col-span-2"><button disabled={busy} className={`${button} bg-violet-400 text-slate-950 hover:bg-violet-300`}>Save operating state</button></div>
+        {profileFields.map((field) => <label key={field.key} className="font-medium">{field.label}<span className="mt-1 block text-xs font-normal leading-5 text-slate-400">{field.help}</span><textarea rows={3} maxLength={6000} value={state[field.key]} onChange={(event) => setState((current) => ({ ...current, [field.key]: event.target.value }))} className={input} placeholder={field.placeholder} /></label>)}
+        <div className="md:col-span-2"><button disabled={busy} className={`${button} bg-violet-400 text-slate-950 hover:bg-violet-300`}>Save {domainKey === "SELF" ? "self-profile" : "operating state"}</button></div>
       </form>
     </section>
 
+    {domainKey === "SELF" && <section className="rounded-2xl border border-slate-700 bg-slate-900 p-4 sm:p-5" aria-labelledby="decision-compass-heading">
+      <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-300">What is most important now</p><h3 id="decision-compass-heading" className="mt-1 text-xl font-semibold">Decision compass</h3><p className="mt-1 max-w-3xl text-sm leading-6 text-slate-400">The highest-priority active item in each category becomes a quick lens for choices. Change the importance below whenever life changes.</p></div><span className="rounded-full border border-slate-700 px-3 py-1 text-xs text-slate-400">Updates automatically</span></div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{selfKnowledgeKinds.map((meta) => { const item = compass[meta.kind]; return <article key={meta.kind} className={`rounded-xl border p-4 ${meta.accent}`}><p className="text-xs font-bold uppercase tracking-wide opacity-80">{meta.shortLabel}</p><p className="mt-2 font-semibold text-slate-100">{item?.title || "Not named yet"}</p><p className="mt-2 text-xs leading-5 text-slate-300">{item ? item.why || item.statement || meta.help : meta.help}</p>{item && <p className="mt-3 text-[11px] font-semibold uppercase tracking-wide opacity-75">{importanceLabel(item.importance)}</p>}</article>; })}</div>
+      <div className="mt-4 rounded-xl border border-violet-900 bg-violet-950/20 p-4"><p className="font-semibold text-violet-200">Before a meaningful yes, no, or change, ask:</p><div className="mt-3 grid gap-2 text-sm text-slate-300 sm:grid-cols-2"><p>Does this honor <span className="font-semibold text-white">{compass.VALUE?.title || "what matters most"}</span>?</p><p>Does it remain true to <span className="font-semibold text-white">{compass.CONVICTION?.title || "my convictions"}</span>?</p><p>Can I lean on <span className="font-semibold text-white">{compass.STRENGTH?.title || "a real strength"}</span>?</p><p>Am I accounting for <span className="font-semibold text-white">{compass.GROWTH_EDGE?.title || "a known blind spot"}</span>?</p></div></div>
+    </section>}
+
     <div className="grid gap-5 xl:grid-cols-2">
       <section className="rounded-2xl border border-slate-700 bg-slate-900 p-4 sm:p-5">
-        <h3 className="text-lg font-semibold">Desired outcomes</h3><p className="mt-1 text-sm leading-6 text-slate-400">These are finishable results that move you toward the desired state—not reminders you keep forever. Add a realistic target date when timing matters, then complete or reopen the outcome as reality changes.</p>
+        <h3 className="text-lg font-semibold">{domainKey === "SELF" ? "Growth intentions & outcomes" : "Desired outcomes"}</h3><p className="mt-1 text-sm leading-6 text-slate-400">{domainKey === "SELF" ? "Turn self-knowledge into a finishable change, conversation, learning goal, or boundary. Keep identity flexible; complete the result when it is real." : "These are finishable results that move you toward the desired state—not reminders you keep forever. Add a realistic target date when timing matters, then complete or reopen the outcome as reality changes."}</p>
         <div className="mt-3 space-y-2">{scoped.goals.length ? scoped.goals.map((goal) => {
           const due = goal.targetDate?.slice(0, 10) || "";
           const overdue = Boolean(due && !goal.done && due < new Date().toISOString().slice(0, 10));
@@ -205,7 +267,7 @@ export default function DomainWorkspace({ domainKey, intro, areas = [] }: { doma
       </section>
 
       <section className="rounded-2xl border border-slate-700 bg-slate-900 p-4 sm:p-5">
-        <h3 className="text-lg font-semibold">Active system</h3><p className="mt-1 text-sm leading-6 text-slate-400">Routines are recurring behaviors: keep them active while useful, pause them when they are not, and edit them as you learn. Next actions are one-time steps you can finish and reopen.</p>
+        <h3 className="text-lg font-semibold">{domainKey === "SELF" ? "Practices & next steps" : "Active system"}</h3><p className="mt-1 text-sm leading-6 text-slate-400">{domainKey === "SELF" ? "Use routines for practices that keep you aligned and next actions for one-time experiments, decisions, or conversations." : "Routines are recurring behaviors: keep them active while useful, pause them when they are not, and edit them as you learn. Next actions are one-time steps you can finish and reopen."}</p>
         <div className="mt-3 grid gap-4 sm:grid-cols-2"><div><h4 className="text-sm font-semibold text-slate-300">Routines</h4>{scoped.routines.length ? scoped.routines.map((item) => <article key={item.id} className="mt-2 rounded-lg border border-slate-800 p-3 text-sm">
           {editingRoutineId === item.id ? <form onSubmit={(event) => { event.preventDefault(); updateRoutine(item); }} className="grid gap-3">
             <label>Routine<input required maxLength={180} value={editRoutineTitle} onChange={(event) => setEditRoutineTitle(event.target.value)} className={input} /></label>
@@ -229,12 +291,37 @@ export default function DomainWorkspace({ domainKey, intro, areas = [] }: { doma
     </div>
 
     <section className="rounded-2xl border border-slate-700 bg-slate-900 p-4 sm:p-5">
-      <h3 className="text-lg font-semibold">Evidence & metrics</h3><p className="mt-1 text-sm text-slate-400">Manual evidence is real data you enter. {domainKey === "HEALTH" ? "Health values are stored in a separate encrypted record boundary." : "No external provider data is inferred."}</p>
+      <h3 className="text-lg font-semibold">{domainKey === "SELF" ? "Growth signals" : "Evidence & metrics"}</h3><p className="mt-1 text-sm text-slate-400">{domainKey === "SELF" ? "Track only signals that help you learn: alignment, follow-through, meaningful feedback, or a behavior you are trying to change." : <>Manual evidence is real data you enter. {domainKey === "HEALTH" ? "Health values are stored in a separate encrypted record boundary." : "No external provider data is inferred."}</>}</p>
       <div className="mt-3 grid gap-3 md:grid-cols-2">{scoped.metrics.map((metric) => { const latest = measurements.find((item) => item.metricId === metric.id); return <article key={metric.id} className="rounded-xl border border-slate-800 p-3"><p className="font-medium">{metric.name}</p><p className="mt-1 text-sm text-slate-400">{latest ? `${latest.value} ${metric.unit}` : "No measurements"}</p>{latest?.note && <p className="mt-1 text-xs text-slate-500">{latest.note}</p>}</article>; })}{!scoped.metrics.length && <p className="rounded-lg border border-dashed border-slate-700 p-4 text-sm text-slate-400">No metrics defined. Start with one measure that changes a decision.</p>}</div>
       <details className="mt-3"><summary className="min-h-11 cursor-pointer py-2 font-semibold text-violet-300">Define metric or record evidence</summary><div className="mt-2 grid gap-4 md:grid-cols-2"><form onSubmit={addMetric}><label className="font-medium">Metric name<input required value={metricName} onChange={(e) => setMetricName(e.target.value)} className={input} /></label><label className="mt-2 block font-medium">Unit<input value={metricUnit} onChange={(e) => setMetricUnit(e.target.value)} className={input} /></label><button disabled={busy} className={`${button} mt-3 border border-slate-600`}>Define metric</button></form><form onSubmit={addMeasurement}><label className="font-medium">Metric<select required value={metricId} onChange={(e) => setMetricId(e.target.value)} className={input}><option value="">Choose metric</option>{scoped.metrics.map((metric) => <option key={metric.id} value={metric.id}>{metric.name}</option>)}</select></label><label className="mt-2 block font-medium">Value<input required type="number" step="any" value={measurementValue} onChange={(e) => setMeasurementValue(e.target.value)} className={input} /></label><label className="mt-2 block font-medium">Evidence note<input value={measurementNote} onChange={(e) => setMeasurementNote(e.target.value)} className={input} /></label><button disabled={busy || !metricId} className={`${button} mt-3 bg-violet-400 text-slate-950`}>Record evidence</button></form></div></details>
     </section>
 
-    {(domainKey === "SELF" || domainKey === "OMNIS") && <section className="rounded-2xl border border-slate-700 bg-slate-900 p-4 sm:p-5"><h3 className="text-lg font-semibold">Principles</h3><div className="mt-3 space-y-2">{scoped.principles.map((item) => <article key={item.id} className="rounded-lg border border-slate-800 p-3"><p className="font-medium">{item.title}</p><p className="mt-1 text-sm text-slate-400">{item.statement}</p></article>)}</div><details className="mt-3"><summary className="min-h-11 cursor-pointer py-2 font-semibold text-violet-300">Add principle</summary><form onSubmit={addPrinciple} className="mt-2 grid gap-3"><label>Title<input required value={principleTitle} onChange={(e) => setPrincipleTitle(e.target.value)} className={input} /></label><label>Statement<textarea rows={2} value={principleStatement} onChange={(e) => setPrincipleStatement(e.target.value)} className={input} /></label><button disabled={busy} className={`${button} w-fit border border-slate-600`}>Add principle</button></form></details></section>}
+    {domainKey === "SELF" && <section className="rounded-2xl border border-slate-700 bg-slate-900 p-4 sm:p-5" aria-labelledby="self-knowledge-heading">
+      <div><h3 id="self-knowledge-heading" className="text-xl font-semibold">Values, convictions, strengths & growth edges</h3><p className="mt-1 max-w-4xl text-sm leading-6 text-slate-400">These are working observations, not permanent labels. Explain why each matters, rank its importance in this season, and archive it when it no longer reflects you. Archived items remain part of the record and can be restored.</p></div>
+      <div className="mt-4 grid gap-3 lg:grid-cols-2">{sortedKnowledge.length ? sortedKnowledge.map((item) => { const meta = selfKnowledgeKinds.find((candidate) => candidate.kind === item.kind) || selfKnowledgeKinds[1]; return <article key={item.id} className={`rounded-xl border p-4 ${item.active ? meta.accent : "border-slate-800 bg-slate-950/40 text-slate-500"}`}>
+        {editingPrincipleId === item.id ? <form onSubmit={(event) => { event.preventDefault(); updatePrinciple(item); }} className="grid gap-3 text-slate-100">
+          <div className="grid gap-3 sm:grid-cols-2"><label className="font-medium">Type<select value={editPrincipleKind} onChange={(event) => setEditPrincipleKind(event.target.value as SelfKnowledgeKind)} className={input}>{selfKnowledgeKinds.map((option) => <option key={option.kind} value={option.kind}>{option.label}</option>)}</select></label><label className="font-medium">Importance now<select value={editPrincipleImportance} onChange={(event) => setEditPrincipleImportance(Number(event.target.value))} className={input}>{[5,4,3,2,1].map((value) => <option key={value} value={value}>{value} · {importanceLabel(value)}</option>)}</select></label></div>
+          <label className="font-medium">Name<input required maxLength={180} value={editPrincipleTitle} onChange={(event) => setEditPrincipleTitle(event.target.value)} className={input} /></label>
+          <label className="font-medium">What this means to me<textarea rows={2} maxLength={3000} value={editPrincipleStatement} onChange={(event) => setEditPrincipleStatement(event.target.value)} className={input} /></label>
+          <label className="font-medium">Why it matters now<textarea rows={2} maxLength={3000} value={editPrincipleWhy} onChange={(event) => setEditPrincipleWhy(event.target.value)} className={input} /></label>
+          <div className="flex flex-wrap gap-2"><button disabled={busy} className={`${button} bg-violet-400 text-slate-950`}>Save</button><button type="button" onClick={() => setEditingPrincipleId(null)} className={`${button} border border-slate-700`}>Cancel</button></div>
+        </form> : <>
+          <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-wide opacity-75">{meta.label}</p><h4 className="mt-1 text-lg font-semibold text-slate-100">{item.title}</h4></div><div className="text-right"><span className="rounded-full border border-current px-2 py-1 text-[11px] font-semibold">{item.importance}/5</span><p className="mt-2 text-[11px] opacity-75">{importanceLabel(item.importance)}</p></div></div>
+          {item.statement && <p className="mt-3 text-sm leading-6 text-slate-300">{item.statement}</p>}
+          {item.why && <div className="mt-3 rounded-lg border border-white/10 bg-black/10 p-3"><p className="text-[11px] font-bold uppercase tracking-wide opacity-70">Why it matters now</p><p className="mt-1 text-sm leading-6 text-slate-200">{item.why}</p></div>}
+          <div className="mt-4 flex flex-wrap gap-2"><button type="button" onClick={() => { setEditingPrincipleId(item.id); setEditPrincipleKind(item.kind); setEditPrincipleTitle(item.title); setEditPrincipleStatement(item.statement); setEditPrincipleWhy(item.why); setEditPrincipleImportance(item.importance); }} className={`${button} border border-current text-xs`}>Edit</button><button type="button" disabled={busy} onClick={() => updatePrinciple(item, !item.active)} className={`${button} border border-current text-xs`}>{item.active ? "Archive" : "Restore"}</button></div>
+        </>}
+      </article>; }) : <p className="rounded-xl border border-dashed border-slate-700 p-5 text-sm leading-6 text-slate-400 lg:col-span-2">Nothing has been named yet. Start with one value that currently guides your choices or one pattern you know you need to watch.</p>}</div>
+      <details className="mt-4 rounded-xl border border-slate-800"><summary className="min-h-11 cursor-pointer px-4 py-3 font-semibold text-violet-300">Add to my self-profile</summary><form onSubmit={addPrinciple} className="grid gap-4 border-t border-slate-800 p-4">
+        <div className="grid gap-3 sm:grid-cols-2"><label className="font-medium">Type<select value={principleKind} onChange={(event) => setPrincipleKind(event.target.value as SelfKnowledgeKind)} className={input}>{selfKnowledgeKinds.map((option) => <option key={option.kind} value={option.kind}>{option.label}</option>)}</select><span className="mt-1 block text-xs font-normal leading-5 text-slate-400">{selfKnowledgeKinds.find((item) => item.kind === principleKind)?.help}</span></label><label className="font-medium">Importance now<select value={principleImportance} onChange={(event) => setPrincipleImportance(Number(event.target.value))} className={input}>{[5,4,3,2,1].map((value) => <option key={value} value={value}>{value} · {importanceLabel(value)}</option>)}</select><span className="mt-1 block text-xs font-normal leading-5 text-slate-400">This can change as your life changes.</span></label></div>
+        <label className="font-medium">Name<input required maxLength={180} value={principleTitle} onChange={(event) => setPrincipleTitle(event.target.value)} className={input} placeholder={principleKind === "GROWTH_EDGE" ? "A pattern I need to notice…" : principleKind === "STRENGTH" ? "A capability I can rely on…" : "Name it clearly…"} /></label>
+        <label className="font-medium">What this means to me<textarea rows={3} maxLength={3000} value={principleStatement} onChange={(event) => setPrincipleStatement(event.target.value)} className={input} placeholder="Define it in your own words and describe how it shows up…" /></label>
+        <label className="font-medium">Why it matters now<textarea rows={3} maxLength={3000} value={principleWhy} onChange={(event) => setPrincipleWhy(event.target.value)} className={input} placeholder="Why does this deserve attention in your current season?" /></label>
+        <button disabled={busy} className={`${button} w-fit bg-violet-400 text-slate-950`}>Add to self-profile</button>
+      </form></details>
+    </section>}
+
+    {domainKey === "OMNIS" && <section className="rounded-2xl border border-slate-700 bg-slate-900 p-4 sm:p-5"><h3 className="text-lg font-semibold">Principles</h3><div className="mt-3 space-y-2">{scoped.principles.map((item) => <article key={item.id} className="rounded-lg border border-slate-800 p-3"><p className="font-medium">{item.title}</p><p className="mt-1 text-sm text-slate-400">{item.statement}</p></article>)}</div><details className="mt-3"><summary className="min-h-11 cursor-pointer py-2 font-semibold text-violet-300">Add principle</summary><form onSubmit={addPrinciple} className="mt-2 grid gap-3"><label>Title<input required value={principleTitle} onChange={(e) => setPrincipleTitle(e.target.value)} className={input} /></label><label>Statement<textarea rows={2} value={principleStatement} onChange={(e) => setPrincipleStatement(e.target.value)} className={input} /></label><button disabled={busy} className={`${button} w-fit border border-slate-600`}>Add principle</button></form></details></section>}
 
     {domainKey === "RELATIONSHIPS" && <section className="rounded-2xl border border-slate-700 bg-slate-900 p-4 sm:p-5"><h3 className="text-lg font-semibold">Commitments & rhythms</h3><p className="mt-1 text-sm text-slate-400">Track your commitments—not scores for other people. Notes remain private.</p><div className="mt-3 space-y-2">{data?.commitments.map((item) => <article key={item.id} className="rounded-lg border border-slate-800 p-3"><p className="font-medium">{item.title}</p><p className="mt-1 text-xs text-slate-500">{item.area}{item.cadence ? ` · ${item.cadence}` : ""}</p></article>)}</div><details className="mt-3"><summary className="min-h-11 cursor-pointer py-2 font-semibold text-violet-300">Add commitment</summary><form onSubmit={addCommitment} className="mt-2 grid gap-3 sm:grid-cols-2"><label>Commitment<input required value={commitmentTitle} onChange={(e) => setCommitmentTitle(e.target.value)} className={input} /></label><label>Area<select value={commitmentArea} onChange={(e) => setCommitmentArea(e.target.value)} className={input}>{relationshipAreas.map((area) => <option key={area}>{area}</option>)}</select></label><label>Rhythm<input placeholder="Weekly, monthly…" value={commitmentCadence} onChange={(e) => setCommitmentCadence(e.target.value)} className={input} /></label><div className="self-end"><button disabled={busy} className={`${button} bg-violet-400 text-slate-950`}>Add commitment</button></div></form></details></section>}
   </div>;
