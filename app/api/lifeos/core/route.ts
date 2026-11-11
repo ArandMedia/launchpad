@@ -6,6 +6,7 @@ import { decryptHealthPayload, encryptHealthPayload, isDomainKey } from "@/lib/l
 const fail = () => NextResponse.json({ error: "Not found" }, { status: 404 });
 const invalid = (message = "Invalid request") => NextResponse.json({ error: message }, { status: 400 });
 const text = (value: unknown, max: number) => typeof value === "string" ? value.trim().slice(0, max) : "";
+const horizons = ["LIFETIME", "PHASE", "YEAR", "SPRINT", "MONTH", "WEEK", "DAY", "HOUR"] as const;
 
 function targetDate(value: unknown) {
   if (value === null || value === "" || value === undefined) return null;
@@ -137,10 +138,33 @@ export async function PATCH(req: NextRequest) {
   if (body.kind === "goal-update") {
     const title = text(body.title, 180);
     const due = targetDate(body.targetDate);
-    if (!title || typeof body.done !== "boolean" || due === undefined) return invalid("Invalid outcome");
+    const horizon = horizons.includes(body.horizon) ? body.horizon : undefined;
+    const parentId = body.parentId === null || body.parentId === "" ? null : typeof body.parentId === "string" ? body.parentId : undefined;
+    if (!title || typeof body.done !== "boolean" || due === undefined || (body.horizon !== undefined && !horizon) || (body.parentId !== undefined && parentId === undefined)) return invalid("Invalid outcome");
+    if (parentId === body.id) return invalid("An outcome cannot connect to itself");
+    if (parentId) {
+      const goals = await db.lifeOSGoal.findMany({ where: { ownerId }, select: { id: true, parentId: true } });
+      const parent = goals.find((goal) => goal.id === parentId);
+      if (!parent) return invalid("Invalid parent outcome");
+      const parents = new Map(goals.map((goal) => [goal.id, goal.parentId]));
+      let cursor: string | null = parentId;
+      while (cursor) {
+        if (cursor === body.id) return invalid("That connection would create a loop");
+        cursor = parents.get(cursor) ?? null;
+      }
+    }
+    const data = {
+      title,
+      targetDate: due,
+      done: body.done,
+      completedAt: body.done ? new Date() : null,
+      ...(body.purpose !== undefined ? { purpose: text(body.purpose, 1500) } : {}),
+      ...(horizon ? { horizon } : {}),
+      ...(body.parentId !== undefined ? { parentId } : {}),
+    };
     const updated = await db.lifeOSGoal.updateMany({
       where: { id: body.id, ownerId },
-      data: { title, targetDate: due, done: body.done, completedAt: body.done ? new Date() : null },
+      data,
     });
     if (!updated.count) return fail();
     await activity(ownerId, isDomainKey(body.domainKey) ? body.domainKey : "OMNIS", "GOAL", body.id, "UPDATED", body.done ? `${title} completed` : `${title} updated`);

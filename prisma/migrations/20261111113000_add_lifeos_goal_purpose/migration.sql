@@ -1,0 +1,2 @@
+ALTER TABLE "LifeOSGoal"
+ADD COLUMN "purpose" TEXT NOT NULL DEFAULT '';
