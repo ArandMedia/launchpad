@@ -110,7 +110,7 @@ export default function SemanticCalendar({ goals, blocks, initialLevel = "DAY", 
     setLevel(next);
   }
 
-  const control = "inline-flex min-h-11 touch-manipulation items-center justify-center rounded-lg border border-slate-600 px-3 py-2 text-sm font-semibold hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-300 disabled:opacity-40";
+  const control = "inline-flex min-h-11 touch-manipulation items-center justify-center rounded-lg border border-slate-600 px-3 py-2 text-sm font-semibold hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300 disabled:opacity-40";
 
   function timeLabel(value: string) {
     return new Intl.DateTimeFormat("en-US", { timeZone: LIFEOS_TIME_ZONE, hour: "numeric", minute: "2-digit" }).format(new Date(value));
@@ -142,11 +142,11 @@ export default function SemanticCalendar({ goals, blocks, initialLevel = "DAY", 
   }
 
   return (
-    <section id="timeline" aria-labelledby="calendar-heading" className="lifeos-timeline scroll-mt-24 min-w-0 rounded-2xl border border-teal-800 bg-slate-900 p-4 sm:p-5 xl:p-6">
+    <section id="timeline" aria-labelledby="calendar-heading" className="lifeos-timeline scroll-mt-24 min-w-0 rounded-2xl border border-violet-800 bg-slate-900 p-4 sm:p-5 xl:p-6">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-teal-300">Semantic time map</p>
-          <h2 id="calendar-heading" className="mt-1 text-xl font-semibold">LifeOS Timeline</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-violet-300">Semantic time map</p>
+          <h2 id="calendar-heading" className="mt-1 text-xl font-semibold">Calendar</h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">Today opens as your working agenda. Zoom out to the span of your life’s work or into individual hours. All times use {LIFEOS_TIME_ZONE}.</p>
         </div>
         <div className="flex flex-wrap gap-2" aria-label="Calendar zoom controls">
@@ -159,7 +159,7 @@ export default function SemanticCalendar({ goals, blocks, initialLevel = "DAY", 
         {CALENDAR_LEVELS.slice(0, levelIndex + 1).map((item, index) => (
           <span key={item} className="flex items-center gap-1">
             {index > 0 && <span aria-hidden="true" className="text-slate-600">/</span>}
-            <button type="button" onClick={() => setLevel(item)} aria-current={item === level ? "page" : undefined} className="min-h-11 rounded-md px-2 text-slate-300 hover:bg-slate-800 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-300">
+            <button type="button" onClick={() => setLevel(item)} aria-current={item === level ? "page" : undefined} className="min-h-11 rounded-md px-2 text-slate-300 hover:bg-slate-800 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-300">
               {item === "LIFE" ? "Life" : item === "PHASE" ? "Phase" : item.charAt(0) + item.slice(1).toLowerCase()}
             </button>
           </span>
@@ -180,7 +180,7 @@ export default function SemanticCalendar({ goals, blocks, initialLevel = "DAY", 
           <aside className="lifeos-agenda rounded-xl border border-slate-700 bg-slate-950/60 p-4" aria-labelledby="agenda-heading">
             <div className="flex items-start justify-between gap-3">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-300">{isToday ? `Today at ${timeLabel(clock.toISOString())}` : "Selected day"}</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">{isToday ? `Today at ${timeLabel(clock.toISOString())}` : "Selected day"}</p>
                 <h4 id="agenda-heading" className="mt-1 text-lg font-semibold">Agenda & up next</h4>
               </div>
               <span className="rounded-full bg-slate-800 px-3 py-1 text-sm text-slate-300">{dayBlocks.length} block{dayBlocks.length === 1 ? "" : "s"}</span>
@@ -190,16 +190,16 @@ export default function SemanticCalendar({ goals, blocks, initialLevel = "DAY", 
               <div className="mt-4 rounded-xl border border-dashed border-slate-600 p-4">
                 <p className="font-semibold">Your day is open.</p>
                 <p className="mt-1 text-sm leading-6 text-slate-400">Tap an open time on the timeline or use the button below. You can link the block to an objective without changing the objective’s planning span.</p>
-                <button type="button" onClick={() => onCreateBlock(`${periodStart.slice(0, 10)}T09:00`, `${periodStart.slice(0, 10)}T10:00`)} className="mt-4 inline-flex min-h-11 items-center rounded-lg bg-teal-400 px-4 py-2 font-semibold text-slate-950 hover:bg-teal-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-300">Add a time block</button>
+                <button type="button" onClick={() => onCreateBlock(`${periodStart.slice(0, 10)}T09:00`, `${periodStart.slice(0, 10)}T10:00`)} className="mt-4 inline-flex min-h-11 items-center rounded-lg bg-violet-400 px-4 py-2 font-semibold text-slate-950 hover:bg-violet-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300">Add a time block</button>
               </div>
             ) : (
               <div className="mt-4 space-y-4">
                 <section aria-labelledby="now-heading">
                   <h5 id="now-heading" className="text-sm font-semibold text-slate-300">Happening now</h5>
                   {happeningNow.length ? happeningNow.map((block) => (
-                    <button key={block.id} type="button" onClick={() => onEditBlock(block)} className="mt-2 block min-h-11 w-full rounded-lg border border-teal-500 bg-teal-950/50 p-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-300">
+                    <button key={block.id} type="button" onClick={() => onEditBlock(block)} className="mt-2 block min-h-11 w-full rounded-lg border border-violet-500 bg-violet-950/50 p-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300">
                       <span className="block font-semibold">{block.title}</span>
-                      <span className="mt-1 block text-sm text-teal-200">{timeLabel(block.startAt)}–{timeLabel(block.endAt)} · {statusLabel(block.status)}</span>
+                      <span className="mt-1 block text-sm text-violet-200">{timeLabel(block.startAt)}–{timeLabel(block.endAt)} · {statusLabel(block.status)}</span>
                     </button>
                   )) : <p className="mt-2 text-sm text-slate-500">No active block right now.</p>}
                 </section>
@@ -207,7 +207,7 @@ export default function SemanticCalendar({ goals, blocks, initialLevel = "DAY", 
                 <section aria-labelledby="next-heading">
                   <h5 id="next-heading" className="text-sm font-semibold text-slate-300">Up next</h5>
                   {upNext ? (
-                    <button type="button" onClick={() => onEditBlock(upNext)} className="mt-2 block min-h-11 w-full rounded-lg border border-slate-600 p-3 text-left hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-300">
+                    <button type="button" onClick={() => onEditBlock(upNext)} className="mt-2 block min-h-11 w-full rounded-lg border border-slate-600 p-3 text-left hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300">
                       <span className="block font-semibold">{upNext.title}</span>
                       <span className="mt-1 block text-sm text-slate-400">Starts {timeLabel(upNext.startAt)}</span>
                     </button>
@@ -219,7 +219,7 @@ export default function SemanticCalendar({ goals, blocks, initialLevel = "DAY", 
                   <div className="mt-2 space-y-2">
                     {remaining.length ? remaining.map((block) => (
                       <article key={block.id} className="rounded-lg border border-slate-800 p-2">
-                        <button type="button" onClick={() => onEditBlock(block)} className="flex min-h-11 w-full items-center justify-between gap-3 rounded-md px-1 text-left hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-teal-300">
+                        <button type="button" onClick={() => onEditBlock(block)} className="flex min-h-11 w-full items-center justify-between gap-3 rounded-md px-1 text-left hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-violet-300">
                           <span className={`min-w-0 truncate ${["COMPLETED", "SKIPPED"].includes(block.status) ? "text-slate-500 line-through" : ""}`}>{block.title}</span>
                           <span className="shrink-0 text-sm text-slate-400">{timeLabel(block.startAt)}</span>
                         </button>
@@ -270,7 +270,7 @@ export default function SemanticCalendar({ goals, blocks, initialLevel = "DAY", 
                   const left = `${15 + block.column * laneWidth}%`;
                   const inactive = ["COMPLETED", "SKIPPED"].includes(block.status);
                   return (
-                    <button key={block.id} type="button" onClick={(event) => { event.stopPropagation(); onEditBlock(block); }} className={`absolute z-10 min-h-11 overflow-hidden rounded-lg border px-2 py-1.5 text-left text-xs shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-200 ${inactive ? "border-slate-600 bg-slate-700/80 text-slate-300" : "border-teal-400 bg-teal-700/90 text-white"}`} style={{ top: `${startMinute * 0.8}px`, height: `${Math.max(44, (endMinute - startMinute) * 0.8)}px`, width, left }} aria-label={`Edit block ${block.title}, ${timeLabel(block.startAt)} to ${timeLabel(block.endAt)}, ${statusLabel(block.status)}`}>
+                    <button key={block.id} type="button" onClick={(event) => { event.stopPropagation(); onEditBlock(block); }} className={`absolute z-10 min-h-11 overflow-hidden rounded-lg border px-2 py-1.5 text-left text-xs shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-200 ${inactive ? "border-slate-600 bg-slate-700/80 text-slate-300" : "border-violet-400 bg-violet-700/90 text-white"}`} style={{ top: `${startMinute * 0.8}px`, height: `${Math.max(44, (endMinute - startMinute) * 0.8)}px`, width, left }} aria-label={`Edit block ${block.title}, ${timeLabel(block.startAt)} to ${timeLabel(block.endAt)}, ${statusLabel(block.status)}`}>
                       <span className={`block truncate font-semibold ${inactive ? "line-through" : ""}`}>{block.title}</span>
                       <span className="block truncate opacity-90">{timeLabel(block.startAt)}–{timeLabel(block.endAt)}</span>
                     </button>
@@ -296,8 +296,8 @@ export default function SemanticCalendar({ goals, blocks, initialLevel = "DAY", 
                 const left = Math.max(0, (new Date(goal.startAt!).valueOf() - startMs) / total * 100);
                 const right = Math.min(100, (new Date(goal.endAt!).valueOf() - startMs) / total * 100);
                 return (
-                  <button key={goal.id} type="button" onClick={() => onEditGoal(goal)} className="relative block min-h-11 w-full overflow-hidden rounded-lg bg-slate-800 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-300" aria-label={`Edit schedule for ${goal.title}`}>
-                    <span className="absolute inset-y-0 rounded-md bg-teal-500/35" style={{ left: `${left}%`, width: `${Math.max(2, right - left)}%` }} />
+                  <button key={goal.id} type="button" onClick={() => onEditGoal(goal)} className="relative block min-h-11 w-full overflow-hidden rounded-lg bg-slate-800 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300" aria-label={`Edit schedule for ${goal.title}`}>
+                    <span className="absolute inset-y-0 rounded-md bg-violet-500/35" style={{ left: `${left}%`, width: `${Math.max(2, right - left)}%` }} />
                     <span className="relative z-10 block truncate px-3 py-3 text-sm font-medium">{goal.title}</span>
                   </button>
                 );
@@ -312,13 +312,13 @@ export default function SemanticCalendar({ goals, blocks, initialLevel = "DAY", 
           const tileGoals = overlapping(scheduled, tile);
           const current = tile.start <= nowLocal && nowLocal < tile.end;
           return (
-            <button key={tile.start} type="button" onClick={() => chooseTile(tile)} className={`min-h-16 touch-manipulation rounded-xl border p-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-300 ${current ? "border-teal-300 bg-teal-950/50" : "border-slate-700 bg-slate-950/50 hover:border-slate-500 hover:bg-slate-800"}`} aria-label={`${tile.label}${current ? ", current period" : ""}${tile.nextLevel ? `, drill into ${tile.nextLevel.toLowerCase()}` : ""}`}>
+            <button key={tile.start} type="button" onClick={() => chooseTile(tile)} className={`min-h-16 touch-manipulation rounded-xl border p-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300 ${current ? "border-violet-300 bg-violet-950/50" : "border-slate-700 bg-slate-950/50 hover:border-slate-500 hover:bg-slate-800"}`} aria-label={`${tile.label}${current ? ", current period" : ""}${tile.nextLevel ? `, drill into ${tile.nextLevel.toLowerCase()}` : ""}`}>
               <span className="flex items-start justify-between gap-2">
                 <span className="font-semibold">{tile.label}</span>
-                {current && <span className="rounded-full bg-teal-300 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-950">Current</span>}
+                {current && <span className="rounded-full bg-violet-300 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-950">Current</span>}
               </span>
               {level === "MONTH" && <span className="mt-2 grid grid-cols-7 gap-1 text-[10px] text-slate-400">{monthDays(tile).map((day) => <span key={day.start}>{day.label}</span>)}</span>}
-              {tileGoals.slice(0, 3).map((goal) => <span key={goal.id} className="mt-2 block truncate rounded bg-teal-400/15 px-2 py-1 text-xs text-teal-100">{goal.title}</span>)}
+              {tileGoals.slice(0, 3).map((goal) => <span key={goal.id} className="mt-2 block truncate rounded bg-violet-400/15 px-2 py-1 text-xs text-violet-100">{goal.title}</span>)}
               {tileGoals.length > 3 && <span className="mt-1 block text-xs text-slate-400">+{tileGoals.length - 3} more</span>}
             </button>
           );

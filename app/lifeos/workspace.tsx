@@ -310,9 +310,9 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
   }
 
   const input =
-    "lifeos-editable mt-1 w-full rounded-lg border border-slate-600 bg-slate-800 p-3 text-base text-slate-100 focus:border-teal-300 focus:outline-none focus:ring-2 focus:ring-teal-300/40";
+    "lifeos-editable mt-1 w-full rounded-lg border border-slate-600 bg-slate-800 p-3 text-base text-slate-100 focus:border-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-300/40";
   const button =
-    "min-h-11 touch-manipulation rounded-lg px-4 py-2 font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-300 disabled:cursor-not-allowed disabled:opacity-50";
+    "min-h-11 touch-manipulation rounded-lg px-4 py-2 font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300 disabled:cursor-not-allowed disabled:opacity-50";
 
   return (
     <div className="lifeos-workspace-grid mt-5 grid gap-4 sm:gap-5 xl:gap-6">
@@ -332,10 +332,10 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
       />}
 
       {mode !== "reviews" && blockEditorOpen && (
-        <section id="block-editor" aria-labelledby="block-editor-heading" className="lifeos-full-span scroll-mt-24 rounded-2xl border border-teal-600 bg-slate-900 p-4 shadow-2xl sm:p-5">
+        <section id="block-editor" aria-labelledby="block-editor-heading" className="lifeos-full-span scroll-mt-24 rounded-2xl border border-violet-600 bg-slate-900 p-4 shadow-2xl sm:p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-teal-300">Daily execution</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">Daily execution</p>
               <h2 id="block-editor-heading" className="mt-1 text-xl font-semibold">{editingBlockId ? "Edit time block" : "Create time block"}</h2>
             </div>
             <button type="button" onClick={() => setBlockEditorOpen(false)} className={`${button} border border-slate-600 text-sm hover:bg-slate-800`}>Close</button>
@@ -374,7 +374,7 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
               <textarea maxLength={1000} rows={2} value={blockNote} onChange={(event) => setBlockNote(event.target.value)} className={input} />
             </label>
             <div className="lifeos-block-actions flex flex-wrap gap-2">
-              <button type="submit" disabled={busy} className={`${button} bg-teal-400 text-slate-950 hover:bg-teal-300`}>{editingBlockId ? "Save changes" : "Create block"}</button>
+              <button type="submit" disabled={busy} className={`${button} bg-violet-400 text-slate-950 hover:bg-violet-300`}>{editingBlockId ? "Save changes" : "Create block"}</button>
               {editingBlockId && blockStatus !== "COMPLETED" && <button type="button" disabled={busy} onClick={() => { const found = blocks.find((block) => block.id === editingBlockId); if (found) setTimeBlockStatus(found, "COMPLETED"); }} className={`${button} border border-slate-600 hover:bg-slate-800`}>Complete</button>}
               {editingBlockId && blockStatus !== "SKIPPED" && <button type="button" disabled={busy} onClick={() => { const found = blocks.find((block) => block.id === editingBlockId); if (found) setTimeBlockStatus(found, "SKIPPED"); }} className={`${button} border border-slate-600 hover:bg-slate-800`}>Skip</button>}
               {editingBlockId && !confirmDeleteBlock && <button type="button" disabled={busy} onClick={() => setConfirmDeleteBlock(true)} className={`${button} border border-red-700 text-red-300 hover:bg-red-950/50`}>Delete block</button>}
@@ -430,7 +430,7 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
               </label>
             </div>
           </fieldset>
-          <button type="submit" disabled={busy} className={`${button} bg-teal-400 text-slate-950 hover:bg-teal-300`}>Save objective</button>
+          <button type="submit" disabled={busy} className={`${button} bg-violet-400 text-slate-950 hover:bg-violet-300`}>Save objective</button>
         </form>
 
         <h3 className="mt-7 font-semibold">Objectives</h3>
@@ -458,7 +458,7 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
                 </div>
               </div>
               {editingScheduleId === goal.id && (
-                <div id={`schedule-${goal.id}`} className="mt-4 rounded-xl border border-teal-800 bg-slate-950/60 p-4">
+                <div id={`schedule-${goal.id}`} className="mt-4 rounded-xl border border-violet-800 bg-slate-950/60 p-4">
                   <h4 className="font-semibold">Edit schedule</h4>
                   <p className="mt-1 text-xs text-slate-400">{LIFEOS_TIME_ZONE}</p>
                   <div className="mt-3 grid gap-3 sm:grid-cols-2">
@@ -466,7 +466,7 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
                     <label className="text-sm font-medium">End<input type="datetime-local" value={editEndLocal} onChange={(event) => setEditEndLocal(event.target.value)} className={input} /></label>
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
-                    <button type="button" disabled={busy} onClick={() => saveSchedule(goal)} className={`${button} bg-teal-400 text-slate-950`}>Save schedule</button>
+                    <button type="button" disabled={busy} onClick={() => saveSchedule(goal)} className={`${button} bg-violet-400 text-slate-950`}>Save schedule</button>
                     {(goal.startAt || goal.endAt) && <button type="button" disabled={busy} onClick={() => saveSchedule(goal, true)} className={`${button} border border-slate-600`}>Clear schedule</button>}
                     <button type="button" onClick={() => setEditingScheduleId(null)} className={`${button} border border-slate-600`}>Cancel</button>
                   </div>
@@ -496,7 +496,7 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
               <textarea maxLength={4000} value={value} onChange={(event) => setter(event.target.value)} className={input} rows={2} />
             </label>
           ))}</div>
-          <button type="submit" disabled={busy} className={`${button} bg-teal-400 text-slate-950 hover:bg-teal-300`}>Save AAR</button>
+          <button type="submit" disabled={busy} className={`${button} bg-violet-400 text-slate-950 hover:bg-violet-300`}>Save AAR</button>
         </form>
 
         <h3 className="mt-7 font-semibold">Recent reviews</h3>
@@ -507,7 +507,7 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
               key={review.id}
               type="button"
               onClick={() => setDate(review.date.slice(0, 10))}
-              className="block min-h-11 w-full touch-manipulation rounded-lg border border-slate-700 p-3 text-left hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-300"
+              className="block min-h-11 w-full touch-manipulation rounded-lg border border-slate-700 p-3 text-left hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300"
             >
               <span className="font-semibold">{review.date.slice(0, 10)}</span>
               <span className="mt-1 block break-words text-sm text-slate-300">{review.learned || review.actual || "Review saved"}</span>

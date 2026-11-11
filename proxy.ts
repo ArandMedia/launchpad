@@ -24,6 +24,8 @@ function isAsset(pathname: string) {
   return (
     pathname.startsWith("/_next") ||
     pathname === "/favicon.ico" ||
+    pathname === "/icon.png" ||
+    pathname === "/launchpad-mark.png" ||
     pathname.startsWith("/api/auth/")
   );
 }

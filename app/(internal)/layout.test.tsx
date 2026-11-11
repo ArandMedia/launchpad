@@ -19,16 +19,17 @@ import InternalLayout from "./layout";
 describe("internal navigation", () => {
   beforeEach(() => { state.owner = false; });
 
-  it("shows the LifeOS Calendar entry to the configured owner", async () => {
+  it("shows Calendar as the first owner destination", async () => {
     state.owner = true;
     const html = renderToStaticMarkup(await InternalLayout({ children: <main>Dashboard</main> }));
     expect(html).toContain('href="/lifeos"');
-    expect(html).toContain("LifeOS Calendar");
+    expect(html).toContain(">Calendar<");
+    expect(html.indexOf(">Calendar<")).toBeLessThan(html.indexOf(">Projects<"));
   });
 
-  it("does not reveal the LifeOS entry to another team user", async () => {
+  it("does not reveal the Calendar entry to another team user", async () => {
     const html = renderToStaticMarkup(await InternalLayout({ children: <main>Dashboard</main> }));
     expect(html).not.toContain('href="/lifeos"');
-    expect(html).not.toContain("LifeOS Calendar");
+    expect(html).not.toContain(">Calendar<");
   });
 });
