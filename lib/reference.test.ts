@@ -18,4 +18,9 @@ describe("reference navigation", () => {
     const html = '<a class="back" href="/"><span aria-hidden="true">←</span><span>Back to LaunchPAD projects</span></a>';
     expect(rewriteLaunchPADProjectsLink(html)).toContain('href="/?view=projects"');
   });
+
+  it("rewrites the project link even when the stored target is absolute", () => {
+    const html = '<a href="https://launchpad.arandmedia.com/"><span>LaunchPAD projects</span></a>';
+    expect(rewriteLaunchPADProjectsLink(html)).toContain('href="/?view=projects"');
+  });
 });
