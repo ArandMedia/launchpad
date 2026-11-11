@@ -6,6 +6,7 @@ type StoredGoal = {
   ownerId: string;
   title: string;
   purpose?: string;
+  nodeType: string;
   horizon: string;
   parentId: string | null;
   done: boolean;
@@ -206,6 +207,7 @@ describe("LifeOS API", () => {
       id: "foreign-goal",
       ownerId: "other-user",
       title: "Foreign",
+      nodeType: "OUTCOME",
       horizon: "YEAR",
       parentId: null,
       done: false,
@@ -221,7 +223,7 @@ describe("LifeOS API", () => {
 
     const rootResponse = await POST(request("POST", { kind: "goal", title: "  Operation OMNIS  ", purpose: "Connect every major system", horizon: "LIFETIME" }));
     const root = (await rootResponse.json()).goal as StoredGoal;
-    const childResponse = await POST(request("POST", { kind: "goal", title: "Annual outcome", horizon: "YEAR", parentId: root.id }));
+    const childResponse = await POST(request("POST", { kind: "goal", title: "Commonwealth Water", nodeType: "BRAND", horizon: "YEAR", parentId: root.id }));
     const child = (await childResponse.json()).goal as StoredGoal;
     const foreignResponse = await POST(request("POST", { kind: "goal", title: "Leak", horizon: "DAY", parentId: "foreign-goal" }));
 
@@ -231,6 +233,7 @@ describe("LifeOS API", () => {
     expect(root.domainKey).toBe("OMNIS");
     expect(childResponse.status).toBe(201);
     expect(child.parentId).toBe(root.id);
+    expect(child.nodeType).toBe("BRAND");
     expect(foreignResponse.status).toBe(400);
   });
 
@@ -366,7 +369,7 @@ describe("LifeOS API", () => {
   it("validates block ownership, objective links, timestamps, fields, and status", async () => {
     state.ownerId = "owner-user";
     state.goals.push({
-      id: "foreign-goal", ownerId: "other-user", title: "Foreign", horizon: "DAY", parentId: null,
+      id: "foreign-goal", ownerId: "other-user", title: "Foreign", nodeType: "OUTCOME", horizon: "DAY", parentId: null,
       done: false, completedAt: null, startAt: null, endAt: null, createdAt: new Date(), updatedAt: new Date(),
       domainKey: "OMNIS", targetValue: null, targetUnit: "",
     });

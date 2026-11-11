@@ -7,6 +7,7 @@ const fail = () => NextResponse.json({ error: "Not found" }, { status: 404 });
 const invalid = (message = "Invalid request") => NextResponse.json({ error: message }, { status: 400 });
 const text = (value: unknown, max: number) => typeof value === "string" ? value.trim().slice(0, max) : "";
 const horizons = ["LIFETIME", "PHASE", "YEAR", "SPRINT", "MONTH", "WEEK", "DAY", "HOUR"] as const;
+const nodeTypes = ["OUTCOME", "BRAND", "INFRASTRUCTURE", "PROGRAM", "PARTNERSHIP", "MILESTONE"] as const;
 
 function targetDate(value: unknown) {
   if (value === null || value === "" || value === undefined) return null;
@@ -139,8 +140,9 @@ export async function PATCH(req: NextRequest) {
     const title = text(body.title, 180);
     const due = targetDate(body.targetDate);
     const horizon = horizons.includes(body.horizon) ? body.horizon : undefined;
+    const nodeType = nodeTypes.includes(body.nodeType) ? body.nodeType : undefined;
     const parentId = body.parentId === null || body.parentId === "" ? null : typeof body.parentId === "string" ? body.parentId : undefined;
-    if (!title || typeof body.done !== "boolean" || due === undefined || (body.horizon !== undefined && !horizon) || (body.parentId !== undefined && parentId === undefined)) return invalid("Invalid outcome");
+    if (!title || typeof body.done !== "boolean" || due === undefined || (body.horizon !== undefined && !horizon) || (body.nodeType !== undefined && !nodeType) || (body.parentId !== undefined && parentId === undefined)) return invalid("Invalid outcome");
     if (parentId === body.id) return invalid("An outcome cannot connect to itself");
     if (parentId) {
       const goals = await db.lifeOSGoal.findMany({ where: { ownerId }, select: { id: true, parentId: true } });
@@ -160,6 +162,7 @@ export async function PATCH(req: NextRequest) {
       completedAt: body.done ? new Date() : null,
       ...(body.purpose !== undefined ? { purpose: text(body.purpose, 1500) } : {}),
       ...(horizon ? { horizon } : {}),
+      ...(nodeType ? { nodeType } : {}),
       ...(body.parentId !== undefined ? { parentId } : {}),
     };
     const updated = await db.lifeOSGoal.updateMany({

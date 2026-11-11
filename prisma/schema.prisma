@@ -206,6 +206,7 @@ model LifeOSGoal {
   ownerId     String
   title       String
   purpose     String            @default("")
+  nodeType    String            @default("OUTCOME")
   horizon     String
   parentId    String?
   done        Boolean           @default(false)
