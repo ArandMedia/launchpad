@@ -49,6 +49,7 @@ model User {
   name         String
   role         UserRole @default(TEAM)
   passwordHash String
+  preferences  Json     @default("{}")
   createdAt    DateTime @default(now())
 
   assignedTasks Task[]
