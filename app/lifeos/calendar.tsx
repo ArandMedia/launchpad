@@ -235,6 +235,7 @@ export default function SemanticCalendar({ goals, blocks, externalEvents, routin
                 {dayRoutines.map((routine) => <button key={routine.id} type="button" onClick={() => setSelectedRoutine(routine)} className="block min-h-11 w-full rounded-lg border border-cyan-700 bg-cyan-950/30 p-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300">
                   <span className="flex items-start justify-between gap-3"><span className="font-semibold">{routine.title}</span><span className="shrink-0 text-xs text-cyan-300">{DOMAIN_LABELS[routine.domainKey as keyof typeof DOMAIN_LABELS] ?? routine.domainKey}</span></span>
                   <span className="mt-1 block text-sm text-slate-300">{timeLabel(routine.startAt)}–{timeLabel(routine.endAt)} · recurring</span>
+                  {routine.objectiveTitle && <span className="mt-1 block text-xs leading-5 text-violet-200">Why: {routine.objectiveTitle}</span>}
                 </button>)}
               </div>
             </section>}
@@ -340,6 +341,7 @@ export default function SemanticCalendar({ goals, blocks, externalEvents, routin
                     <button key={block.id} type="button" onClick={(event) => { event.stopPropagation(); setSelectedRoutine(routine); }} className="absolute z-10 min-h-11 overflow-hidden rounded-lg border border-cyan-400 bg-cyan-800/90 px-2 py-1.5 text-left text-xs text-white shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-200" style={{ top: `${startMinute * 0.8}px`, height: `${Math.max(44, (endMinute - startMinute) * 0.8)}px`, width, left }} aria-label={`View recurring routine ${routine.title}, ${timeLabel(routine.startAt)} to ${timeLabel(routine.endAt)}`}>
                       <span className="block truncate font-semibold">{routine.title}</span>
                       <span className="block truncate opacity-90">Routine · {timeLabel(routine.startAt)}–{timeLabel(routine.endAt)}</span>
+                      {routine.objectiveTitle && <span className="block truncate text-[10px] text-violet-100">Why: {routine.objectiveTitle}</span>}
                     </button>
                   );
                   if (external) return (
@@ -438,6 +440,7 @@ export default function SemanticCalendar({ goals, blocks, externalEvents, routin
           <div className="flex items-center gap-2 text-sm font-semibold text-cyan-300"><span className="h-3 w-3 rounded-full bg-cyan-400" /><span>{DOMAIN_LABELS[selectedRoutine.domainKey as keyof typeof DOMAIN_LABELS] ?? selectedRoutine.domainKey}</span><span className="rounded-full border border-cyan-800 px-2 py-0.5 text-xs">Recurring routine</span></div>
           <h3 id="routine-occurrence-title" className="mt-3 text-2xl font-bold">{selectedRoutine.title}</h3>
           <p className="mt-4 text-base text-slate-100">{new Intl.DateTimeFormat("en-US", { timeZone: LIFEOS_TIME_ZONE, dateStyle: "full", timeStyle: "short" }).format(new Date(selectedRoutine.startAt))} – {timeLabel(selectedRoutine.endAt)}</p>
+          {selectedRoutine.objectiveTitle && <div className="mt-4 rounded-xl border border-violet-800 bg-violet-950/30 p-3"><p className="text-xs font-semibold uppercase tracking-wide text-violet-300">Why this matters</p><p className="mt-1 text-sm text-violet-100">{selectedRoutine.objectiveTitle}</p></div>}
           {selectedRoutine.notes && <p className="mt-4 whitespace-pre-wrap leading-6 text-slate-300">{selectedRoutine.notes}</p>}
           <p className="mt-5 text-xs leading-5 text-slate-500">This occurrence comes from an active {selectedRoutine.cadence.toLowerCase()} routine. Edit or pause the routine in Pillars to change future Calendar appearances.</p>
         </section>

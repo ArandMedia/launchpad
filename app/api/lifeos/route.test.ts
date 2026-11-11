@@ -68,7 +68,7 @@ vi.mock("@/lib/lifeos-auth", () => ({
 vi.mock("@/lib/db", () => ({
   db: {
     lifeOSRoutine: {
-      findMany: vi.fn(async () => []),
+      findMany: vi.fn(async () => [] as Array<{ objective: { title: string } | null }>),
     },
     lifeOSGoal: {
       findMany: vi.fn(async ({ where }: { where: { ownerId: string } }) =>

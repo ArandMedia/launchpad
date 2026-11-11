@@ -6,9 +6,9 @@ const state = vi.hoisted(() => ({
   metric: null as null | { id: string; ownerId: string; domainKey: string; name: string },
   healthData: null as null | Record<string, unknown>,
   activities: [] as Array<Record<string, unknown>>,
-  goal: null as null | { id: string; ownerId: string; title: string; purpose: string; nodeType: string; horizon: string; parentId: string | null; done: boolean; targetDate: Date | null; completedAt: Date | null },
+  goal: null as null | { id: string; ownerId: string; domainKey?: string; title: string; purpose: string; nodeType: string; horizon: string; parentId: string | null; done: boolean; targetDate: Date | null; completedAt: Date | null },
   goals: [] as Array<{ id: string; ownerId: string; parentId: string | null }>,
-  routine: null as null | { id: string; ownerId: string; title: string; cadence: string; notes: string; active: boolean; scheduleTime?: string; scheduleDurationMinutes?: number; scheduleWeekdays?: number[]; scheduleDayOfMonth?: number | null; scheduleStartsOn?: Date | null },
+  routine: null as null | { id: string; ownerId: string; title: string; cadence: string; notes: string; active: boolean; objectiveId?: string | null; scheduleTime?: string; scheduleDurationMinutes?: number; scheduleWeekdays?: number[]; scheduleDayOfMonth?: number | null; scheduleStartsOn?: Date | null },
   action: null as null | { id: string; ownerId: string; title: string; status: string },
 }));
 
@@ -34,6 +34,7 @@ vi.mock("@/lib/db", () => ({
     },
     lifeOSGoal: {
       findMany: vi.fn(async ({ where }) => state.goals.filter((goal) => goal.ownerId === where.ownerId)),
+      findFirst: vi.fn(async ({ where }) => state.goal && state.goal.id === where.id && state.goal.ownerId === where.ownerId && (!where.domainKey || state.goal.domainKey === where.domainKey) ? state.goal : null),
       updateMany: vi.fn(async ({ where, data }) => {
         if (!state.goal || state.goal.id !== where.id || state.goal.ownerId !== where.ownerId) return { count: 0 };
         Object.assign(state.goal, data);
@@ -153,12 +154,16 @@ describe("LifeOS modular API", () => {
 
   it("validates and saves recurring routine calendar schedules", async () => {
     state.ownerId = "owner-user";
+    state.goal = { id: "goal-health", ownerId: "owner-user", domainKey: "HEALTH", title: "Lose 50 pounds", purpose: "", nodeType: "OUTCOME", horizon: "YEAR", parentId: null, done: false, targetDate: null, completedAt: null };
     state.routine = { id: "routine-1", ownerId: "owner-user", title: "Walk", cadence: "WEEKLY", notes: "", active: true };
-    const response = await PATCH(request("PATCH", { kind: "routine-update", id: "routine-1", domainKey: "HEALTH", title: "Upper body and run", cadence: "WEEKLY", notes: "Train consistently", active: true, scheduleTime: "07:00", scheduleDurationMinutes: 60, scheduleWeekdays: [1], scheduleDayOfMonth: 1, scheduleStartsOn: "2026-11-09" }));
+    const response = await PATCH(request("PATCH", { kind: "routine-update", id: "routine-1", domainKey: "HEALTH", title: "Upper body and run", cadence: "WEEKLY", notes: "Train consistently", active: true, objectiveId: "goal-health", scheduleTime: "07:00", scheduleDurationMinutes: 60, scheduleWeekdays: [1], scheduleDayOfMonth: 1, scheduleStartsOn: "2026-11-09" }));
     expect(response.status).toBe(200);
-    expect(state.routine).toMatchObject({ scheduleTime: "07:00", scheduleDurationMinutes: 60, scheduleWeekdays: [1], scheduleDayOfMonth: null });
+    expect(state.routine).toMatchObject({ objectiveId: "goal-health", scheduleTime: "07:00", scheduleDurationMinutes: 60, scheduleWeekdays: [1], scheduleDayOfMonth: null });
 
     const invalid = await PATCH(request("PATCH", { kind: "routine-update", id: "routine-1", domainKey: "HEALTH", title: "Upper body and run", cadence: "WEEKLY", notes: "", active: true, scheduleTime: "07:00", scheduleDurationMinutes: 60, scheduleWeekdays: [], scheduleStartsOn: "2026-11-09" }));
     expect(invalid.status).toBe(400);
+
+    const foreignObjective = await PATCH(request("PATCH", { kind: "routine-update", id: "routine-1", domainKey: "WEALTH", title: "Upper body and run", cadence: "WEEKLY", notes: "", active: true, objectiveId: "goal-health", scheduleTime: "07:00", scheduleDurationMinutes: 60, scheduleWeekdays: [1], scheduleStartsOn: "2026-11-09" }));
+    expect(foreignObjective.status).toBe(400);
   });
 });

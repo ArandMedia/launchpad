@@ -43,13 +43,20 @@ async function activity(ownerId: string, domainKey: string, entityType: string, 
   await db.lifeOSActivity.create({ data: { ownerId, domainKey, entityType, entityId, action, summary } });
 }
 
+async function routineObjective(ownerId: string, domainKey: string, value: unknown) {
+  if (value === null || value === "" || value === undefined) return null;
+  if (typeof value !== "string") return undefined;
+  const objective = await db.lifeOSGoal.findFirst({ where: { id: value, ownerId, domainKey } });
+  return objective ? value : undefined;
+}
+
 export async function GET() {
   const ownerId = await lifeOSOwner();
   if (!ownerId) return fail();
   const [domains, goals, routines, actions, metrics, measurements, healthMeasurements, principles, commitments, integrations, reviewCycles, activities] = await Promise.all([
     db.lifeOSDomainState.findMany({ where: { ownerId }, orderBy: { domainKey: "asc" } }),
     db.lifeOSGoal.findMany({ where: { ownerId }, orderBy: { createdAt: "desc" } }),
-    db.lifeOSRoutine.findMany({ where: { ownerId }, orderBy: { createdAt: "desc" } }),
+    db.lifeOSRoutine.findMany({ where: { ownerId }, orderBy: { createdAt: "desc" }, include: { objective: { select: { title: true } } } }),
     db.lifeOSAction.findMany({ where: { ownerId }, orderBy: { createdAt: "desc" } }),
     db.lifeOSMetricDefinition.findMany({ where: { ownerId }, orderBy: { createdAt: "desc" } }),
     db.lifeOSMeasurement.findMany({ where: { ownerId }, orderBy: { observedAt: "desc" }, take: 200 }),
@@ -90,9 +97,10 @@ export async function POST(req: NextRequest) {
     const title = text(body.title, 180);
     const cadence = ["DAILY", "WEEKLY", "MONTHLY"].includes(body.cadence) ? body.cadence : "WEEKLY";
     const schedule = routineSchedule(body, cadence);
+    const objectiveId = await routineObjective(ownerId, body.domainKey, body.objectiveId);
     if (!title) return invalid("Routine title required");
-    if (!schedule) return invalid("Invalid routine schedule");
-    const record = await db.lifeOSRoutine.create({ data: { ownerId, domainKey: body.domainKey, title, cadence, notes: text(body.notes, 1000), ...schedule } });
+    if (!schedule || objectiveId === undefined) return invalid("Invalid routine schedule or objective");
+    const record = await db.lifeOSRoutine.create({ data: { ownerId, domainKey: body.domainKey, title, cadence, notes: text(body.notes, 1000), objectiveId, ...schedule } });
     await activity(ownerId, body.domainKey, "ROUTINE", record.id, "CREATED", title);
     return NextResponse.json({ record }, { status: 201 });
   }
@@ -203,10 +211,12 @@ export async function PATCH(req: NextRequest) {
     const title = text(body.title, 180);
     const cadence = ["DAILY", "WEEKLY", "MONTHLY"].includes(body.cadence) ? body.cadence : null;
     const schedule = cadence ? routineSchedule(body, cadence) : null;
-    if (!title || !cadence || !schedule || typeof body.active !== "boolean") return invalid("Invalid routine");
+    const domainKey = isDomainKey(body.domainKey) ? body.domainKey : null;
+    const objectiveId = domainKey ? await routineObjective(ownerId, domainKey, body.objectiveId) : undefined;
+    if (!title || !cadence || !schedule || !domainKey || objectiveId === undefined || typeof body.active !== "boolean") return invalid("Invalid routine");
     const updated = await db.lifeOSRoutine.updateMany({
-      where: { id: body.id, ownerId },
-      data: { title, cadence, notes: text(body.notes, 1000), active: body.active, ...schedule },
+      where: { id: body.id, ownerId, domainKey },
+      data: { title, cadence, notes: text(body.notes, 1000), active: body.active, objectiveId, ...schedule },
     });
     if (!updated.count) return fail();
     await activity(ownerId, isDomainKey(body.domainKey) ? body.domainKey : "OMNIS", "ROUTINE", body.id, "UPDATED", `${title} updated`);

@@ -70,7 +70,7 @@ export async function GET() {
       orderBy: { startAt: "asc" },
       include: { project: { include: { client: true } }, task: true, milestone: true },
     }),
-    db.lifeOSRoutine.findMany({ where: { ownerId }, orderBy: { createdAt: "desc" } }),
+    db.lifeOSRoutine.findMany({ where: { ownerId }, orderBy: { createdAt: "desc" }, include: { objective: { select: { title: true } } } }),
   ]);
   const blocks = rawBlocks.map(({ project, task, milestone, ...block }) => ({
     ...block,
@@ -78,7 +78,7 @@ export async function GET() {
     clientName: project ? project.client.companyName || project.client.name : null,
     linkedWorkTitle: task?.title ?? milestone?.title ?? null,
   }));
-  return NextResponse.json({ goals, reviews, blocks, routines });
+  return NextResponse.json({ goals, reviews, blocks, routines: routines.map(({ objective, ...routine }) => ({ ...routine, objectiveTitle: objective?.title ?? "" })) });
 }
 
 export async function POST(req: NextRequest) {
