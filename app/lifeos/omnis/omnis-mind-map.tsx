@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 type Goal = {
   id: string;
@@ -69,6 +69,7 @@ function layout(goals: Goal[]) {
 }
 
 export default function OmnisMindMap() {
+  const editorRef = useRef<HTMLElement>(null);
   const [data, setData] = useState<CoreData | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
@@ -104,11 +105,13 @@ export default function OmnisMindMap() {
 
   function beginAdd(parent = "") {
     clearForm(); setParentId(parent); setSelectedId(null); setAdding(true); setError("");
+    window.requestAnimationFrame(() => editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
 
   function beginEdit(goal: Goal) {
     setTitle(goal.title); setPurpose(goal.purpose || ""); setHorizon(goal.horizon); setTargetDate(goal.targetDate?.slice(0, 10) || ""); setParentId(goal.parentId || "");
     setSelectedId(goal.id); setAdding(false); setError("");
+    window.requestAnimationFrame(() => editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
 
   async function send(url: string, method: "POST" | "PATCH", body: object) {
@@ -235,7 +238,7 @@ export default function OmnisMindMap() {
       </div>
     </section>
 
-    {(adding || selected) && <section className="rounded-2xl border border-violet-700 bg-slate-900 p-4 sm:p-5" aria-labelledby="pinpoint-editor-heading">
+    {(adding || selected) && <section ref={editorRef} className="scroll-mt-24 rounded-2xl border border-violet-700 bg-slate-900 p-4 sm:p-5" aria-labelledby="pinpoint-editor-heading">
       <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wide text-violet-300">{adding ? "New connection" : "Selected pinpoint"}</p><h3 id="pinpoint-editor-heading" className="mt-1 text-lg font-semibold">{adding ? "Add to the mission map" : "Edit the pinpoint"}</h3></div><button type="button" onClick={() => { setAdding(false); setSelectedId(null); clearForm(); }} className={`${button} border border-slate-700 text-sm`}>Close</button></div>
       <form onSubmit={adding ? addPin : updatePin} className="mt-4 grid gap-4 md:grid-cols-2">
         <label className="font-medium md:col-span-2">What needs to be built?<input required maxLength={180} value={title} onChange={(event) => setTitle(event.target.value)} className={input} placeholder="A concrete outcome or capability…" /></label>
