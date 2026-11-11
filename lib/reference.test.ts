@@ -33,4 +33,16 @@ describe("reference navigation", () => {
     const html = '<a class="back"><span>Back to LaunchPAD projects</span></a>';
     expect(rewriteLaunchPADProjectsLink(html)).toContain('href="/?view=projects"');
   });
+
+  it("recognizes an encoded space in the project label", () => {
+    const html = '<a href="/">Back to LaunchPAD&nbsp;projects</a>';
+    expect(rewriteLaunchPADProjectsLink(html)).toContain('href="/?view=projects"');
+  });
+
+  it("rewrites the first anchor on the Creative Engineering page when its label is CSS-generated", () => {
+    const html = '<html><body><a class="back" href="/"><svg></svg></a><h1>Creative Engineering MASTER REFERENCE</h1></body></html>';
+    expect(rewriteLaunchPADProjectsLink(html)).toContain(
+      '<a class="back" href="/?view=projects"><svg></svg></a>',
+    );
+  });
 });
