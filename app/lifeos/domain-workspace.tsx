@@ -129,6 +129,9 @@ export default function DomainWorkspace({ domainKey, intro, areas = [] }: { doma
   }), [data, domainKey]);
 
   const measurements = domainKey === "HEALTH" ? data?.healthMeasurements ?? [] : data?.measurements ?? [];
+  const activeOutcomes = scoped.goals.filter((goal) => !goal.done);
+  const soleActiveOutcome = activeOutcomes.length === 1 ? activeOutcomes[0] : null;
+  const routineObjectiveTitle = (routine: Routine) => routine.objective?.title || soleActiveOutcome?.title || "";
 
   async function saveState(event: FormEvent) { event.preventDefault(); await send("/api/lifeos/core", "POST", { kind: "domain-state", domainKey, ...state }); }
   async function addOutcome(event: FormEvent) { event.preventDefault(); if (await send("/api/lifeos", "POST", { kind: "goal", title: outcomeTitle, targetDate: outcomeTargetDate || null, horizon: "YEAR", domainKey })) { setOutcomeTitle(""); setOutcomeTargetDate(""); } }
@@ -214,7 +217,7 @@ export default function DomainWorkspace({ domainKey, intro, areas = [] }: { doma
           </form> : <>
             <div className="flex items-start justify-between gap-2"><div><p className={item.active ? "font-medium" : "text-slate-500"}>{item.title}</p><p className="mt-1 text-xs text-slate-500">{item.cadence.toLowerCase()} · {item.active ? "active" : "paused"}</p></div><span className={`rounded-full border px-2 py-1 text-xs ${item.active ? "border-violet-800 text-violet-300" : "border-slate-700 text-slate-500"}`}>{item.active ? "Active" : "Paused"}</span></div>
             <p className="mt-2 text-xs font-medium text-cyan-300">{scheduleSummary(item)}</p>
-            {item.objective && <p className="mt-1 text-xs text-violet-300">Supports: {item.objective.title}</p>}
+            {routineObjectiveTitle(item) && <p className="mt-1 text-xs text-violet-300">Supports: {routineObjectiveTitle(item)}</p>}
             {item.notes && <p className="mt-2 text-xs leading-5 text-slate-400">{item.notes}</p>}
             <div className="mt-3 flex flex-wrap gap-2"><button type="button" disabled={busy} onClick={() => send("/api/lifeos/core", "PATCH", { kind: "routine-status", id: item.id, active: !item.active, domainKey })} className={`${button} border border-slate-700 text-xs`}>{item.active ? "Pause" : "Resume"}</button><button type="button" onClick={() => { setEditingRoutineId(item.id); setEditRoutineTitle(item.title); setEditRoutineCadence(item.cadence); setEditRoutineNotes(item.notes); setEditRoutineObjectiveId(item.objectiveId ?? scoped.goals.find((goal) => !goal.done)?.id ?? ""); setEditRoutineSchedule({ time: item.scheduleTime, duration: item.scheduleDurationMinutes, weekdays: item.scheduleWeekdays, dayOfMonth: item.scheduleDayOfMonth ?? 1, startsOn: item.scheduleStartsOn?.slice(0, 10) || nowInChicago().slice(0, 10) }); }} className={`${button} border border-slate-700 text-xs`}>Edit</button></div>
           </>}

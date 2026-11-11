@@ -338,10 +338,10 @@ export default function SemanticCalendar({ goals, blocks, externalEvents, routin
                   const routine = routineByBlockId.get(block.id);
                   const inactive = ["COMPLETED", "SKIPPED"].includes(block.status);
                   if (routine) return (
-                    <button key={block.id} type="button" onClick={(event) => { event.stopPropagation(); setSelectedRoutine(routine); }} className="absolute z-10 min-h-11 overflow-hidden rounded-lg border border-cyan-400 bg-cyan-800/90 px-2 py-1.5 text-left text-xs text-white shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-200" style={{ top: `${startMinute * 0.8}px`, height: `${Math.max(44, (endMinute - startMinute) * 0.8)}px`, width, left }} aria-label={`View recurring routine ${routine.title}, ${timeLabel(routine.startAt)} to ${timeLabel(routine.endAt)}`}>
-                      <span className="block truncate font-semibold">{routine.title}</span>
-                      <span className="block truncate opacity-90">Routine · {timeLabel(routine.startAt)}–{timeLabel(routine.endAt)}</span>
-                      {routine.objectiveTitle && <span className="block truncate text-[10px] text-violet-100">Why: {routine.objectiveTitle}</span>}
+                    <button key={block.id} type="button" onClick={(event) => { event.stopPropagation(); setSelectedRoutine(routine); }} className="absolute z-10 min-h-11 overflow-hidden rounded-lg border border-cyan-400 bg-cyan-800/90 px-2 py-1 text-left text-white shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-200" style={{ top: `${startMinute * 0.8}px`, height: `${Math.max(routine.objectiveTitle ? 52 : 44, (endMinute - startMinute) * 0.8)}px`, width, left }} aria-label={`View recurring routine ${routine.title}, ${timeLabel(routine.startAt)} to ${timeLabel(routine.endAt)}${routine.objectiveTitle ? `, supports ${routine.objectiveTitle}` : ""}`}>
+                      <span className="block truncate text-xs font-semibold leading-4">{routine.title}</span>
+                      <span className="block truncate text-[10px] leading-3 opacity-90">Routine · {timeLabel(routine.startAt)}–{timeLabel(routine.endAt)}</span>
+                      {routine.objectiveTitle && <span className="block truncate text-[10px] leading-3 text-violet-100">Why: {routine.objectiveTitle}</span>}
                     </button>
                   );
                   if (external) return (
