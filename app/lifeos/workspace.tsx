@@ -107,7 +107,14 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
     setGoals(data.goals);
     setReviews(data.reviews);
     setBlocks(data.blocks ?? []);
-    setRoutines(data.routines ?? []);
+    const activeOutcomes = new Map<string, Goal[]>();
+    for (const goal of data.goals as Goal[]) {
+      if (!goal.done) activeOutcomes.set(goal.domainKey, [...(activeOutcomes.get(goal.domainKey) ?? []), goal]);
+    }
+    setRoutines((data.routines ?? []).map((routine: ScheduledRoutine) => {
+      const candidates = activeOutcomes.get(routine.domainKey) ?? [];
+      return { ...routine, objectiveTitle: routine.objectiveTitle || (candidates.length === 1 ? candidates[0].title : "") };
+    }));
     setExternalEvents(calendarData.events ?? []);
     setProjectAgenda(agendaData.items ?? []);
   }
