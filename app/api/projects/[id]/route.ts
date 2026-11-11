@@ -4,6 +4,16 @@ import { db } from "@/lib/db";
 import { notifyClient } from "@/lib/notifications";
 import { requireTeamSession } from "@/lib/require-auth";
 
+const projectStatuses = ["DISCOVERY", "IN_PROGRESS", "REVIEW", "BLOCKED", "COMPLETE"] as const;
+const invalid = (error: string) => NextResponse.json({ error }, { status: 400 });
+
+function calendarDate(value: unknown) {
+  if (value === null) return null;
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return date.toISOString().slice(0, 10) === value ? date : undefined;
+}
+
 export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const project = await db.project.findUnique({
@@ -32,23 +42,28 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   const auth = await requireTeamSession();
   if ("error" in auth) return auth.error;
 
-  const data = await req.json();
+  const data = await req.json().catch(() => null);
+  if (!data || typeof data !== "object" || Array.isArray(data)) return invalid("Enter valid project details");
+
+  const name = data.name === undefined ? undefined : typeof data.name === "string" ? data.name.trim() : "";
+  if (name !== undefined && (!name || name.length > 200)) return invalid("Enter a project name of 200 characters or less");
+  if (data.status !== undefined && !projectStatuses.includes(data.status)) return invalid("Choose a valid project status");
+  const startDate = data.startDate === undefined ? undefined : calendarDate(data.startDate);
+  const targetDate = data.targetDate === undefined ? undefined : calendarDate(data.targetDate);
+  if (data.startDate !== undefined && startDate === undefined) return invalid("Choose a valid start date");
+  if (data.targetDate !== undefined && targetDate === undefined) return invalid("Choose a valid target date");
 
   const project = await db.project.update({
     where: { id: params.id },
     data: {
       ...(data.status ? { status: data.status } : {}),
-      ...(data.name ? { name: data.name } : {}),
+      ...(name !== undefined ? { name } : {}),
       ...(data.description !== undefined ? { description: data.description || null } : {}),
       ...(data.problem !== undefined ? { problem: data.problem || null } : {}),
       ...(data.solution !== undefined ? { solution: data.solution || null } : {}),
       ...(data.desiredOutcome !== undefined ? { desiredOutcome: data.desiredOutcome || null } : {}),
-      ...(data.startDate !== undefined
-        ? { startDate: data.startDate ? new Date(data.startDate) : null }
-        : {}),
-      ...(data.targetDate !== undefined
-        ? { targetDate: data.targetDate ? new Date(data.targetDate) : null }
-        : {}),
+      ...(startDate !== undefined ? { startDate } : {}),
+      ...(targetDate !== undefined ? { targetDate } : {}),
       ...(data.archived !== undefined ? { archivedAt: data.archived ? new Date() : null } : {}),
     },
     include: { client: true },
