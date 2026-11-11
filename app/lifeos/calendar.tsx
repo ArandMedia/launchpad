@@ -18,6 +18,7 @@ import {
   type CalendarTile,
 } from "@/lib/lifeos-time";
 import { agendaFor, positionOverlappingBlocks, type BlockStatus, type TimeBlock } from "@/lib/lifeos-blocks";
+import type { ExternalCalendarEvent } from "@/lib/calendar-feeds";
 
 export type CalendarGoal = {
   id: string;
@@ -31,12 +32,19 @@ export type CalendarGoal = {
 type Props = {
   goals: CalendarGoal[];
   blocks: TimeBlock[];
+  externalEvents: ExternalCalendarEvent[];
   initialLevel?: CalendarLevel;
   onEditGoal: (goal: CalendarGoal) => void;
   onCreateBlock: (startLocal: string, endLocal: string) => void;
   onEditBlock: (block: TimeBlock) => void;
   onStatusBlock: (block: TimeBlock, status: BlockStatus) => void;
 };
+
+function externalOverlapping(events: ExternalCalendarEvent[], tile: CalendarTile) {
+  const range = localRangeToUtc(tile.start, tile.end);
+  if (!range) return [];
+  return events.filter((event) => new Date(event.startAt) < range.end && new Date(event.endAt) > range.start);
+}
 
 function overlapping(goals: CalendarGoal[], tile: CalendarTile) {
   const range = localRangeToUtc(tile.start, tile.end);
@@ -61,10 +69,11 @@ function monthDays(tile: CalendarTile) {
   return days;
 }
 
-export default function SemanticCalendar({ goals, blocks, initialLevel = "DAY", onEditGoal, onCreateBlock, onEditBlock, onStatusBlock }: Props) {
+export default function SemanticCalendar({ goals, blocks, externalEvents, initialLevel = "DAY", onEditGoal, onCreateBlock, onEditBlock, onStatusBlock }: Props) {
   const [level, setLevel] = useState<CalendarLevel>(initialLevel);
   const [cursor, setCursor] = useState(() => nowInChicago());
   const [clock, setClock] = useState(() => new Date());
+  const [selectedExternal, setSelectedExternal] = useState<ExternalCalendarEvent | null>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   const nowLocal = nowInChicago(clock);
   const periodStart = floorLocal(cursor, level);
@@ -86,8 +95,15 @@ export default function SemanticCalendar({ goals, blocks, initialLevel = "DAY", 
   const dayBlocks = level === "DAY" && periodUtc
     ? blocks.filter((block) => new Date(block.startAt) < periodUtc.end && new Date(block.endAt) > periodUtc.start)
     : [];
+  const dayExternal = level === "DAY" && periodUtc
+    ? externalEvents.filter((event) => new Date(event.startAt) < periodUtc.end && new Date(event.endAt) > periodUtc.start)
+    : [];
   const { happeningNow, upNext, remaining } = agendaFor(dayBlocks, clock, isToday);
-  const positionedBlocks = positionOverlappingBlocks(dayBlocks);
+  const externalByBlockId = new Map(dayExternal.map((event) => [`external:${event.id}`, event]));
+  const positionedItems = positionOverlappingBlocks([
+    ...dayBlocks,
+    ...dayExternal.map((event) => ({ id: `external:${event.id}`, title: event.title, note: event.description, category: event.calendarName, status: "PLANNED" as const, startAt: event.startAt, endAt: event.endAt, objectiveId: null })),
+  ]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setClock(new Date()), 60_000);
@@ -141,6 +157,11 @@ export default function SemanticCalendar({ goals, blocks, initialLevel = "DAY", 
     return status.replace("_", " ").toLowerCase();
   }
 
+  function eventTime(event: ExternalCalendarEvent) {
+    if (event.allDay) return "All day";
+    return `${timeLabel(event.startAt)}–${timeLabel(event.endAt)}`;
+  }
+
   return (
     <section id="timeline" aria-labelledby="calendar-heading" className="lifeos-timeline scroll-mt-24 min-w-0 rounded-2xl border border-violet-800 bg-slate-900 p-4 sm:p-5 xl:p-6">
       <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
@@ -183,10 +204,20 @@ export default function SemanticCalendar({ goals, blocks, initialLevel = "DAY", 
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">{isToday ? `Today at ${timeLabel(clock.toISOString())}` : "Selected day"}</p>
                 <h4 id="agenda-heading" className="mt-1 text-lg font-semibold">Agenda & up next</h4>
               </div>
-              <span className="rounded-full bg-slate-800 px-3 py-1 text-sm text-slate-300">{dayBlocks.length} block{dayBlocks.length === 1 ? "" : "s"}</span>
+              <span className="rounded-full bg-slate-800 px-3 py-1 text-sm text-slate-300">{dayBlocks.length + dayExternal.length} item{dayBlocks.length + dayExternal.length === 1 ? "" : "s"}</span>
             </div>
 
-            {dayBlocks.length === 0 ? (
+            {dayExternal.length > 0 && <section className="mt-4" aria-labelledby="synced-calendars-heading">
+              <h5 id="synced-calendars-heading" className="text-sm font-semibold text-slate-300">Synced calendars</h5>
+              <div className="mt-2 space-y-2">
+                {dayExternal.map((event) => <button key={event.id} type="button" onClick={() => setSelectedExternal(event)} className="block min-h-11 w-full rounded-lg border p-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300" style={{ borderColor: event.color, backgroundColor: `${event.color}22` }}>
+                  <span className="flex items-start justify-between gap-3"><span className="font-semibold">{event.title}</span><span className="shrink-0 text-xs" style={{ color: event.color }}>{event.calendarName}</span></span>
+                  <span className="mt-1 block text-sm text-slate-300">{eventTime(event)}{event.location ? ` · ${event.location}` : ""}</span>
+                </button>)}
+              </div>
+            </section>}
+
+            {dayBlocks.length === 0 && dayExternal.length === 0 ? (
               <div className="mt-4 rounded-xl border border-dashed border-slate-600 p-4">
                 <p className="font-semibold">Your day is open.</p>
                 <p className="mt-1 text-sm leading-6 text-slate-400">Tap an open time on the timeline or use the button below. You can link the block to an objective without changing the objective’s planning span.</p>
@@ -262,13 +293,20 @@ export default function SemanticCalendar({ goals, blocks, initialLevel = "DAY", 
                     </button>
                   );
                 })}
-                {positionedBlocks.map((block) => {
+                {positionedItems.map((block) => {
                   const startMinute = minutesIntoSelectedDay(block.startAt);
                   const endMinute = minutesIntoSelectedDay(block.endAt, true);
                   const laneWidth = 83 / block.columnCount;
                   const width = `${Math.max(12, laneWidth - 0.75)}%`;
                   const left = `${15 + block.column * laneWidth}%`;
+                  const external = externalByBlockId.get(block.id);
                   const inactive = ["COMPLETED", "SKIPPED"].includes(block.status);
+                  if (external) return (
+                    <button key={block.id} type="button" onClick={(event) => { event.stopPropagation(); setSelectedExternal(external); }} className="absolute z-10 min-h-11 overflow-hidden rounded-lg border px-2 py-1.5 text-left text-xs text-white shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" style={{ top: `${startMinute * 0.8}px`, height: `${Math.max(44, (endMinute - startMinute) * 0.8)}px`, width, left, borderColor: external.color, backgroundColor: `${external.color}dd` }} aria-label={`View synced event ${external.title}, ${eventTime(external)}, from ${external.calendarName}`}>
+                      <span className="block truncate font-semibold">{external.title}</span>
+                      <span className="block truncate opacity-90">{eventTime(external)}</span>
+                    </button>
+                  );
                   return (
                     <button key={block.id} type="button" onClick={(event) => { event.stopPropagation(); onEditBlock(block); }} className={`absolute z-10 min-h-11 overflow-hidden rounded-lg border px-2 py-1.5 text-left text-xs shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-200 ${inactive ? "border-slate-600 bg-slate-700/80 text-slate-300" : "border-violet-400 bg-violet-700/90 text-white"}`} style={{ top: `${startMinute * 0.8}px`, height: `${Math.max(44, (endMinute - startMinute) * 0.8)}px`, width, left }} aria-label={`Edit block ${block.title}, ${timeLabel(block.startAt)} to ${timeLabel(block.endAt)}, ${statusLabel(block.status)}`}>
                       <span className={`block truncate font-semibold ${inactive ? "line-through" : ""}`}>{block.title}</span>
@@ -310,6 +348,7 @@ export default function SemanticCalendar({ goals, blocks, initialLevel = "DAY", 
       {level !== "DAY" && <div className={`lifeos-time-grid lifeos-time-grid--${level.toLowerCase()} mt-4 grid gap-2`} aria-label={`${level.toLowerCase()} time regions`}>
         {tiles.map((tile) => {
           const tileGoals = overlapping(scheduled, tile);
+          const tileEvents = externalOverlapping(externalEvents, tile);
           const current = tile.start <= nowLocal && nowLocal < tile.end;
           return (
             <button key={tile.start} type="button" onClick={() => chooseTile(tile)} className={`min-h-16 touch-manipulation rounded-xl border p-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300 ${current ? "border-violet-300 bg-violet-950/50" : "border-slate-700 bg-slate-950/50 hover:border-slate-500 hover:bg-slate-800"}`} aria-label={`${tile.label}${current ? ", current period" : ""}${tile.nextLevel ? `, drill into ${tile.nextLevel.toLowerCase()}` : ""}`}>
@@ -319,7 +358,8 @@ export default function SemanticCalendar({ goals, blocks, initialLevel = "DAY", 
               </span>
               {level === "MONTH" && <span className="mt-2 grid grid-cols-7 gap-1 text-[10px] text-slate-400">{monthDays(tile).map((day) => <span key={day.start}>{day.label}</span>)}</span>}
               {tileGoals.slice(0, 3).map((goal) => <span key={goal.id} className="mt-2 block truncate rounded bg-violet-400/15 px-2 py-1 text-xs text-violet-100">{goal.title}</span>)}
-              {tileGoals.length > 3 && <span className="mt-1 block text-xs text-slate-400">+{tileGoals.length - 3} more</span>}
+              {tileEvents.slice(0, Math.max(0, 3 - tileGoals.length)).map((event) => <span key={event.id} className="mt-2 block truncate rounded px-2 py-1 text-xs text-white" style={{ backgroundColor: `${event.color}88` }}>{event.title}</span>)}
+              {tileGoals.length + tileEvents.length > 3 && <span className="mt-1 block text-xs text-slate-400">+{tileGoals.length + tileEvents.length - 3} more</span>}
             </button>
           );
         })}
@@ -329,7 +369,24 @@ export default function SemanticCalendar({ goals, blocks, initialLevel = "DAY", 
         <span>{visibleGoals.length} scheduled in view</span>
         <span aria-hidden="true">•</span>
         <span>{unscheduledCount} unscheduled objective{unscheduledCount === 1 ? "" : "s"}</span>
+        <span aria-hidden="true">•</span>
+        <span>{externalEvents.length} synced calendar event{externalEvents.length === 1 ? "" : "s"}</span>
       </div>
+
+      {selectedExternal && <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/75 p-3 sm:items-center" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedExternal(null); }}>
+        <section role="dialog" aria-modal="true" aria-labelledby="synced-event-title" className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl border bg-slate-900 p-5 shadow-2xl" style={{ borderColor: selectedExternal.color }}>
+          <button type="button" onClick={() => setSelectedExternal(null)} className={`${control} mb-4`}>← Close</button>
+          <div className="flex items-center gap-2 text-sm font-semibold" style={{ color: selectedExternal.color }}><span className="h-3 w-3 rounded-full" style={{ backgroundColor: selectedExternal.color }} /><span>{selectedExternal.calendarName}</span><span className="rounded-full border border-slate-700 px-2 py-0.5 text-xs text-slate-400">Read only</span></div>
+          <h3 id="synced-event-title" className="mt-3 text-2xl font-bold">{selectedExternal.title}</h3>
+          <dl className="mt-5 space-y-4 text-sm">
+            <div><dt className="font-semibold text-slate-400">Time</dt><dd className="mt-1 text-base text-slate-100">{selectedExternal.allDay ? "All day" : `${new Intl.DateTimeFormat("en-US", { timeZone: LIFEOS_TIME_ZONE, dateStyle: "full", timeStyle: "short" }).format(new Date(selectedExternal.startAt))} – ${timeLabel(selectedExternal.endAt)}`}</dd></div>
+            {selectedExternal.location && <div><dt className="font-semibold text-slate-400">Location</dt><dd className="mt-1 whitespace-pre-wrap text-slate-100">{selectedExternal.location}</dd></div>}
+            {selectedExternal.description && <div><dt className="font-semibold text-slate-400">Details</dt><dd className="mt-1 whitespace-pre-wrap leading-6 text-slate-200">{selectedExternal.description}</dd></div>}
+          </dl>
+          {selectedExternal.eventUrl && <a href={selectedExternal.eventUrl} target="_blank" rel="noreferrer" className="mt-5 inline-flex min-h-11 items-center rounded-lg border border-slate-600 px-4 py-2 font-semibold hover:bg-slate-800">Open event link ↗</a>}
+          <p className="mt-5 text-xs leading-5 text-slate-500">This event is synchronized from a public calendar feed. Edit it in the source calendar; LaunchPAD will update on the next refresh.</p>
+        </section>
+      </div>}
     </section>
   );
 }

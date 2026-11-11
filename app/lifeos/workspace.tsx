@@ -5,6 +5,7 @@ import SemanticCalendar, { type CalendarGoal } from "./calendar";
 import { LIFEOS_TIME_ZONE, chicagoLocalToUtc, utcToChicagoInput } from "@/lib/lifeos-time";
 import { BLOCK_STATUSES, type BlockStatus, type TimeBlock } from "@/lib/lifeos-blocks";
 import { DOMAIN_LABELS, LIFEOS_DOMAINS, type LifeOSDomainKey } from "@/lib/lifeos-domains";
+import type { ExternalCalendarEvent } from "@/lib/calendar-feeds";
 
 type Goal = {
   id: string;
@@ -40,6 +41,7 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
   const [goals, setGoals] = useState<Goal[]>([]);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [blocks, setBlocks] = useState<TimeBlock[]>([]);
+  const [externalEvents, setExternalEvents] = useState<ExternalCalendarEvent[]>([]);
   const [horizon, setHorizon] = useState("SPRINT");
   const [goalDomainKey, setGoalDomainKey] = useState<LifeOSDomainKey>("OMNIS");
   const [title, setTitle] = useState("");
@@ -71,12 +73,16 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
   const goalNames = useMemo(() => new Map(goals.map((goal) => [goal.id, goal.title])), [goals]);
 
   async function refresh() {
-    const response = await fetch("/api/lifeos", { cache: "no-store" });
+    const [response, calendarResponse] = await Promise.all([
+      fetch("/api/lifeos", { cache: "no-store" }),
+      fetch("/api/lifeos/calendar-feeds", { cache: "no-store" }),
+    ]);
     if (!response.ok) throw new Error("Unable to load your private workspace");
-    const data = await response.json();
+    const [data, calendarData] = await Promise.all([response.json(), calendarResponse.ok ? calendarResponse.json() : Promise.resolve({ events: [] })]);
     setGoals(data.goals);
     setReviews(data.reviews);
     setBlocks(data.blocks ?? []);
+    setExternalEvents(calendarData.events ?? []);
   }
 
   useEffect(() => {
@@ -86,6 +92,16 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
         setStatus("");
         setError(caught instanceof Error ? caught.message : "Unable to load your private workspace");
       });
+  }, []);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      fetch("/api/lifeos/calendar-feeds", { cache: "no-store" })
+        .then((response) => response.ok ? response.json() : null)
+        .then((data) => { if (data) setExternalEvents(data.events ?? []); })
+        .catch(() => undefined);
+    }, 5 * 60_000);
+    return () => window.clearInterval(timer);
   }, []);
 
   useEffect(() => {
@@ -324,6 +340,7 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
       {mode !== "reviews" && <SemanticCalendar
         goals={goals}
         blocks={blocks}
+        externalEvents={externalEvents}
         initialLevel={mode === "timeline" ? "LIFE" : "DAY"}
         onEditGoal={beginSchedule}
         onCreateBlock={(start, end) => showBlockEditor(start, end)}

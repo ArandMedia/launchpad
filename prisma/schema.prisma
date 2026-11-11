@@ -413,6 +413,25 @@ model LifeOSIntegrationConnection {
   @@index([ownerId, domainKey, status])
 }
 
+// Public iCloud subscription URLs are bearer secrets even though the feed is
+// read-only, so the URL is stored as authenticated ciphertext.
+model LifeOSCalendarFeed {
+  id            String    @id @default(cuid())
+  ownerId       String
+  name          String
+  color         String    @default("#8b5cf6")
+  urlCiphertext String
+  iv            String
+  authTag       String
+  active        Boolean   @default(true)
+  lastSyncedAt  DateTime?
+  lastError     String    @default("")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([ownerId, active])
+}
+
 // Append-only user-visible audit trail for LifeOS mutations.
 model LifeOSActivity {
   id         String   @id @default(cuid())
