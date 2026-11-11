@@ -40,6 +40,9 @@ type StoredBlock = {
   startAt: Date;
   endAt: Date;
   objectiveId: string | null;
+  projectId?: string | null;
+  taskId?: string | null;
+  milestoneId?: string | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -49,6 +52,9 @@ const state = vi.hoisted(() => ({
   goals: [] as StoredGoal[],
   reviews: [] as StoredReview[],
   blocks: [] as StoredBlock[],
+  projects: [] as { id: string; archivedAt: Date | null; status: string }[],
+  tasks: [] as { id: string; projectId: string; status: string }[],
+  milestones: [] as { id: string; projectId: string; completedAt: Date | null }[],
   nextId: 1,
 }));
 
@@ -137,6 +143,25 @@ vi.mock("@/lib/db", () => ({
         return { count: 1 };
       }),
     },
+    project: {
+      findFirst: vi.fn(async ({ where }: { where: { id: string } }) =>
+        state.projects.find((project) => project.id === where.id && !project.archivedAt && project.status !== "COMPLETE") ?? null
+      ),
+    },
+    task: {
+      findFirst: vi.fn(async ({ where }: { where: { id: string } }) => {
+        const task = state.tasks.find((candidate) => candidate.id === where.id && candidate.status !== "DONE");
+        const project = task && state.projects.find((candidate) => candidate.id === task.projectId && !candidate.archivedAt && candidate.status !== "COMPLETE");
+        return task && project ? { projectId: task.projectId } : null;
+      }),
+    },
+    milestone: {
+      findFirst: vi.fn(async ({ where }: { where: { id: string } }) => {
+        const milestone = state.milestones.find((candidate) => candidate.id === where.id && !candidate.completedAt);
+        const project = milestone && state.projects.find((candidate) => candidate.id === milestone.projectId && !candidate.archivedAt && candidate.status !== "COMPLETE");
+        return milestone && project ? { projectId: milestone.projectId } : null;
+      }),
+    },
   },
 }));
 
@@ -156,6 +181,9 @@ describe("LifeOS API", () => {
     state.goals.length = 0;
     state.reviews.length = 0;
     state.blocks.length = 0;
+    state.projects.length = 0;
+    state.tasks.length = 0;
+    state.milestones.length = 0;
     state.nextId = 1;
   });
 
@@ -340,5 +368,24 @@ describe("LifeOS API", () => {
     expect((await POST(request("POST", { ...base, title: "" }))).status).toBe(400);
     expect((await PATCH(request("PATCH", { action: "block-status", id: "missing", status: "COMPLETED" }))).status).toBe(404);
     expect((await DELETE(request("DELETE", { id: "missing" }))).status).toBe(404);
+  });
+
+  it("links open project work while rejecting mismatched or completed sources", async () => {
+    state.ownerId = "owner-user";
+    state.projects.push({ id: "project-1", archivedAt: null, status: "IN_PROGRESS" });
+    state.tasks.push(
+      { id: "task-open", projectId: "project-1", status: "TODO" },
+      { id: "task-done", projectId: "project-1", status: "DONE" },
+    );
+    const base = {
+      kind: "block", title: "Ship the work", note: "", category: "Project work", status: "PLANNED",
+      startAt: "2026-11-10T15:00:00.000Z", endAt: "2026-11-10T16:00:00.000Z",
+    };
+
+    const linked = await POST(request("POST", { ...base, projectId: "project-1", taskId: "task-open" }));
+    expect(linked.status).toBe(201);
+    expect(state.blocks[0]).toMatchObject({ projectId: "project-1", taskId: "task-open", milestoneId: null });
+    expect((await POST(request("POST", { ...base, projectId: "another-project", taskId: "task-open" }))).status).toBe(400);
+    expect((await POST(request("POST", { ...base, projectId: "project-1", taskId: "task-done" }))).status).toBe(400);
   });
 });

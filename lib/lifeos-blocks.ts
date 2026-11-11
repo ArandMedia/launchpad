@@ -10,6 +10,11 @@ export type TimeBlock = {
   startAt: string;
   endAt: string;
   objectiveId: string | null;
+  projectId?: string | null;
+  taskId?: string | null;
+  milestoneId?: string | null;
+  projectName?: string | null;
+  clientName?: string | null;
 };
 
 export type PositionedBlock = TimeBlock & { column: number; columnCount: number };
