@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 
 const STATUSES = ["DISCOVERY", "IN_PROGRESS", "REVIEW", "BLOCKED", "COMPLETE"];
 
@@ -32,8 +31,10 @@ export default function ProjectHeader({
   clientLabel: string;
 }) {
   const router = useRouter();
+  const saveController = useRef<AbortController | null>(null);
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
   const [name, setName] = useState(project.name);
   const [description, setDescription] = useState(project.description || "");
   const [problem, setProblem] = useState(project.problem || "");
@@ -45,24 +46,60 @@ export default function ProjectHeader({
 
   async function save(e: React.FormEvent) {
     e.preventDefault();
+    if (busy) return;
+    setError("");
     setBusy(true);
-    await fetch(`/api/projects/${project.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name,
-        description,
-        problem,
-        solution,
-        desiredOutcome,
-        status,
-        startDate: startDate || null,
-        targetDate: targetDate || null,
-      }),
-    });
+    const controller = new AbortController();
+    saveController.current = controller;
+    const timeout = window.setTimeout(() => controller.abort("timeout"), 15_000);
+
+    try {
+      const response = await fetch(`/api/projects/${project.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          name,
+          description,
+          problem,
+          solution,
+          desiredOutcome,
+          status,
+          startDate: startDate || null,
+          targetDate: targetDate || null,
+        }),
+      });
+      const data = await response.json().catch(() => null);
+      if (!response.ok) throw new Error(data?.error || "The project could not be saved.");
+      setEditing(false);
+      router.refresh();
+    } catch (caught) {
+      if (!controller.signal.aborted || controller.signal.reason === "timeout") {
+        setError(controller.signal.reason === "timeout"
+          ? "Saving took too long. Your edits are still here, so you can try again."
+          : caught instanceof Error ? caught.message : "The project could not be saved.");
+      }
+    } finally {
+      window.clearTimeout(timeout);
+      if (saveController.current === controller) saveController.current = null;
+      setBusy(false);
+    }
+  }
+
+  function cancelEditing() {
+    saveController.current?.abort("cancelled");
+    saveController.current = null;
     setBusy(false);
+    setError("");
+    setName(project.name);
+    setDescription(project.description || "");
+    setProblem(project.problem || "");
+    setSolution(project.solution || "");
+    setDesiredOutcome(project.desiredOutcome || "");
+    setStatus(project.status);
+    setStartDate(toDateInput(project.startDate));
+    setTargetDate(toDateInput(project.targetDate));
     setEditing(false);
-    router.refresh();
   }
 
   async function toggleArchive() {
@@ -92,7 +129,7 @@ export default function ProjectHeader({
 
   if (editing) {
     return (
-      <form onSubmit={save} className="lp-card mb-6 mt-5 grid gap-4">
+      <form onSubmit={save} aria-busy={busy} className="lp-card mb-6 mt-5 grid gap-4">
         <input
           className="lp-input font-medium"
           value={name}
@@ -168,20 +205,21 @@ export default function ProjectHeader({
             onChange={(e) => setTargetDate(e.target.value)}
           />
         </div>
-        <div className="flex gap-2">
+        {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+        <div className="sticky bottom-0 z-10 -mx-4 flex gap-2 border-t border-slate-200 bg-white/95 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur sm:-mx-5 sm:px-5">
           <button
             type="submit"
             disabled={busy}
             className="lp-button-primary"
           >
-            Save
+            {busy ? "Saving…" : "Save changes"}
           </button>
           <button
             type="button"
-            onClick={() => setEditing(false)}
+            onClick={cancelEditing}
             className="lp-button-secondary"
           >
-            Cancel
+            {busy ? "Cancel save" : "Cancel"}
           </button>
         </div>
       </form>
@@ -236,7 +274,7 @@ export default function ProjectHeader({
           )}
         </div>
         <div className="flex flex-wrap items-center gap-1 shrink-0">
-          <button onClick={() => setEditing(true)} className="lp-button-secondary">
+          <button onClick={() => { setError(""); setEditing(true); }} className="lp-button-secondary">
             Edit
           </button>
           <button onClick={toggleArchive} className="lp-button-ghost">
