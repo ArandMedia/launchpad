@@ -34,12 +34,13 @@ export default function NewClientPage() {
 
   if (result) {
     return (
-      <main className="p-8 max-w-lg mx-auto">
-        <Link href="/clients" className="text-sm text-slate-400 hover:text-slate-700">
+      <main className="lp-page-narrow">
+        <Link href="/clients" className="lp-link text-sm">
           ← Back to clients
         </Link>
-        <h1 className="text-xl font-semibold text-slate-900 mb-4 mt-2">Client created</h1>
-        <div className="bg-white border border-slate-200 rounded-lg p-5 grid gap-2 text-sm">
+        <p className="lp-eyebrow mt-5">Client portal</p>
+        <h1 className="lp-title mb-5">Client created</h1>
+        <div className="lp-card grid gap-2 text-sm">
           <p>
             Portal URL:{" "}
             <span className="font-mono text-slate-700">
@@ -52,11 +53,11 @@ export default function NewClientPage() {
           <p>
             Temporary password: <span className="font-mono text-slate-700">{result.tempPassword}</span>
           </p>
-          <p className="text-xs text-slate-400 mt-2">
+          <p className="mt-2 text-xs text-slate-500">
             This password is shown once. Share it with the client directly -- it won't be shown again.
           </p>
         </div>
-        <Link href="/projects/new" className="inline-block mt-4 text-sm text-blue-600 underline">
+        <Link href="/projects/new" className="lp-button-primary mt-4">
           Create a project for this client →
         </Link>
       </main>
@@ -64,27 +65,29 @@ export default function NewClientPage() {
   }
 
   return (
-    <main className="p-8 max-w-lg mx-auto">
-      <Link href="/clients" className="text-sm text-slate-400 hover:text-slate-700">
+    <main className="lp-page-narrow">
+      <Link href="/clients" className="lp-link text-sm">
         ← Back to clients
       </Link>
-      <h1 className="text-xl font-semibold text-slate-900 mb-6 mt-2">New client</h1>
-      <form onSubmit={handleSubmit} className="grid gap-3">
+      <p className="lp-eyebrow mt-5">Relationships</p>
+      <h1 className="lp-title">New client</h1>
+      <p className="lp-subtitle">Create the client record and a secure portal login in one step.</p>
+      <form onSubmit={handleSubmit} className="lp-card mt-6 grid gap-4">
         <input
-          className="border border-slate-300 rounded px-3 py-2 text-sm"
+          className="lp-input"
           placeholder="Contact name"
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
         />
         <input
-          className="border border-slate-300 rounded px-3 py-2 text-sm"
+          className="lp-input"
           placeholder="Company name (optional)"
           value={companyName}
           onChange={(e) => setCompanyName(e.target.value)}
         />
         <input
-          className="border border-slate-300 rounded px-3 py-2 text-sm"
+          className="lp-input"
           placeholder="Email"
           type="email"
           value={email}
@@ -92,16 +95,16 @@ export default function NewClientPage() {
           required
         />
         <input
-          className="border border-slate-300 rounded px-3 py-2 text-sm"
+          className="lp-input"
           placeholder="Phone (optional)"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
         />
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
         <button
           type="submit"
           disabled={loading}
-          className="bg-slate-900 text-white rounded px-3 py-2 text-sm font-medium disabled:opacity-50"
+          className="lp-button-primary w-full"
         >
           {loading ? "Creating…" : "Create client + portal login"}
         </button>

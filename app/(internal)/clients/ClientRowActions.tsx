@@ -43,11 +43,11 @@ export default function ClientRowActions({
   }
 
   return (
-    <div className="flex items-center gap-3">
-      <button onClick={toggleArchive} className="text-sm text-slate-400 hover:text-slate-700">
+    <div className="flex items-center gap-1">
+      <button onClick={toggleArchive} className="lp-button-ghost">
         {archived ? "Unarchive" : "Archive"}
       </button>
-      <button onClick={deleteClient} className="text-sm text-red-500 hover:underline">
+      <button onClick={deleteClient} className="inline-flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 hover:text-red-800">
         Delete
       </button>
     </div>

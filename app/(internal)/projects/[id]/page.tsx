@@ -36,8 +36,8 @@ export default async function ProjectDetail(props: { params: Promise<{ id: strin
   }) : [];
 
   return (
-    <main className="p-8 max-w-4xl mx-auto">
-      <Link href="/?view=projects" className="text-sm text-slate-400 hover:text-slate-700">
+    <main className="lp-page">
+      <Link href="/?view=projects" className="lp-link text-sm">
         ← Back to projects
       </Link>
       <ProjectHeader

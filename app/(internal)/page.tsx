@@ -39,16 +39,18 @@ export default async function InternalDashboard(
   });
 
   return (
-    <main className="p-8 max-w-6xl mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-xl font-semibold text-slate-900">
-          {showArchived ? "Archived projects" : "Projects"}
-        </h1>
+    <main className="lp-page">
+      <div className="lp-page-header">
+        <div>
+          <p className="lp-eyebrow">Work portfolio</p>
+          <h1 className="lp-title">{showArchived ? "Archived projects" : "Projects"}</h1>
+          <p className="lp-subtitle">Keep active work, client context, milestones, and delivery status in one consistent view.</p>
+        </div>
         <Link
           href={showArchived ? "/?view=projects" : "/?view=projects&archived=1"}
-          className="text-sm text-slate-400 hover:text-slate-700"
+          className="lp-button-secondary"
         >
-          {showArchived ? "← Back to active projects" : "View archived →"}
+          {showArchived ? "← Back to active projects" : "View archived"}
         </Link>
       </div>
 
