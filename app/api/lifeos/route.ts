@@ -5,6 +5,7 @@ import { BLOCK_STATUSES } from "@/lib/lifeos-blocks";
 import { isDomainKey } from "@/lib/lifeos-domains";
 
 const horizons = ["LIFETIME", "PHASE", "YEAR", "SPRINT", "MONTH", "WEEK", "DAY", "HOUR"] as const;
+const nodeTypes = ["OUTCOME", "BRAND", "INFRASTRUCTURE", "PROGRAM", "PARTNERSHIP", "MILESTONE"] as const;
 const fail = () => NextResponse.json({ error: "Not found" }, { status: 404 });
 
 function scheduleFrom(body: Record<string, unknown>) {
@@ -98,9 +99,10 @@ export async function POST(req: NextRequest) {
     if (targetValue !== null && !Number.isFinite(targetValue)) return NextResponse.json({ error: "Invalid target" }, { status: 400 });
     const targetUnit = typeof body.targetUnit === "string" ? body.targetUnit.trim().slice(0, 40) : "";
     const purpose = typeof body.purpose === "string" ? body.purpose.trim().slice(0, 1500) : "";
+    const nodeType = nodeTypes.includes(body.nodeType) ? body.nodeType : "OUTCOME";
     const targetDate = targetDateFrom(body.targetDate);
     if (targetDate === undefined) return NextResponse.json({ error: "Invalid target date" }, { status: 400 });
-    const goal = await db.lifeOSGoal.create({ data: { ownerId, title, purpose, horizon: body.horizon, parentId, domainKey, targetValue, targetUnit, targetDate, ...schedule } });
+    const goal = await db.lifeOSGoal.create({ data: { ownerId, title, purpose, nodeType, horizon: body.horizon, parentId, domainKey, targetValue, targetUnit, targetDate, ...schedule } });
     return NextResponse.json({ goal }, { status: 201 });
   }
   if (body.kind === "review") {

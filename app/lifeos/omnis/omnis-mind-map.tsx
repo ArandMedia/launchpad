@@ -7,6 +7,7 @@ type Goal = {
   id: string;
   title: string;
   purpose: string;
+  nodeType: string;
   horizon: string;
   parentId: string | null;
   done: boolean;
@@ -30,6 +31,7 @@ type CoreData = { goals: Goal[]; domains: DomainState[] };
 type Position = { x: number; y: number; depth: number };
 
 const horizons = ["LIFETIME", "PHASE", "YEAR", "SPRINT", "MONTH", "WEEK", "DAY", "HOUR"] as const;
+const pinpointTypes = ["OUTCOME", "BRAND", "INFRASTRUCTURE", "PROGRAM", "PARTNERSHIP", "MILESTONE"] as const;
 const DEFAULT_MISSION = "Operation OMNIS is a lifelong project to establish universal access to the Commonwealth necessities—clean water, nutritious food, healthcare, education, and safe shelter—for every human on Earth.";
 const horizonLabel: Record<string, string> = {
   LIFETIME: "Life", PHASE: "Phase", YEAR: "Year", SPRINT: "13-week sprint", MONTH: "Month", WEEK: "Week", DAY: "Day", HOUR: "Hour",
@@ -78,6 +80,7 @@ export default function OmnisMindMap() {
   const [status, setStatus] = useState("Loading mission map…");
   const [title, setTitle] = useState("");
   const [purpose, setPurpose] = useState("");
+  const [nodeType, setNodeType] = useState("OUTCOME");
   const [horizon, setHorizon] = useState("YEAR");
   const [targetDate, setTargetDate] = useState("");
   const [parentId, setParentId] = useState("");
@@ -100,7 +103,7 @@ export default function OmnisMindMap() {
   const selected = goals.find((goal) => goal.id === selectedId) ?? null;
 
   function clearForm() {
-    setTitle(""); setPurpose(""); setHorizon("YEAR"); setTargetDate(""); setParentId("");
+    setTitle(""); setPurpose(""); setNodeType("OUTCOME"); setHorizon("YEAR"); setTargetDate(""); setParentId("");
   }
 
   function beginAdd(parent = "") {
@@ -109,7 +112,7 @@ export default function OmnisMindMap() {
   }
 
   function beginEdit(goal: Goal) {
-    setTitle(goal.title); setPurpose(goal.purpose || ""); setHorizon(goal.horizon); setTargetDate(goal.targetDate?.slice(0, 10) || ""); setParentId(goal.parentId || "");
+    setTitle(goal.title); setPurpose(goal.purpose || ""); setNodeType(goal.nodeType || "OUTCOME"); setHorizon(goal.horizon); setTargetDate(goal.targetDate?.slice(0, 10) || ""); setParentId(goal.parentId || "");
     setSelectedId(goal.id); setAdding(false); setError("");
     window.requestAnimationFrame(() => editorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
   }
@@ -126,19 +129,19 @@ export default function OmnisMindMap() {
 
   async function addPin(event: FormEvent) {
     event.preventDefault();
-    const saved = await send("/api/lifeos", "POST", { kind: "goal", title, purpose, horizon, targetDate: targetDate || null, parentId: parentId || null, domainKey: "OMNIS" });
+    const saved = await send("/api/lifeos", "POST", { kind: "goal", title, purpose, nodeType, horizon, targetDate: targetDate || null, parentId: parentId || null, domainKey: "OMNIS" });
     if (saved) { setAdding(false); clearForm(); }
   }
 
   async function updatePin(event: FormEvent) {
     event.preventDefault();
     if (!selected) return;
-    const saved = await send("/api/lifeos/core", "PATCH", { kind: "goal-update", id: selected.id, domainKey: "OMNIS", title, purpose, horizon, targetDate: targetDate || null, parentId: parentId || null, done: selected.done });
+    const saved = await send("/api/lifeos/core", "PATCH", { kind: "goal-update", id: selected.id, domainKey: "OMNIS", title, purpose, nodeType, horizon, targetDate: targetDate || null, parentId: parentId || null, done: selected.done });
     if (saved) setSelectedId(null);
   }
 
   async function togglePin(goal: Goal) {
-    await send("/api/lifeos/core", "PATCH", { kind: "goal-update", id: goal.id, domainKey: "OMNIS", title: goal.title, purpose: goal.purpose, horizon: goal.horizon, targetDate: goal.targetDate?.slice(0, 10) || null, parentId: goal.parentId, done: !goal.done });
+    await send("/api/lifeos/core", "PATCH", { kind: "goal-update", id: goal.id, domainKey: "OMNIS", title: goal.title, purpose: goal.purpose, nodeType: goal.nodeType, horizon: goal.horizon, targetDate: goal.targetDate?.slice(0, 10) || null, parentId: goal.parentId, done: !goal.done });
   }
 
   async function saveMission(event: FormEvent) {
@@ -210,7 +213,7 @@ export default function OmnisMindMap() {
               const x2 = child.x;
               const y2 = child.y + 58;
               const middle = x1 + (x2 - x1) / 2;
-              return <path key={goal.id} d={`M ${x1} ${y1} C ${middle} ${y1}, ${middle} ${y2}, ${x2} ${y2}`} fill="none" stroke={goal.done ? "#34d399" : "#8b5cf6"} strokeWidth="2" strokeOpacity="0.65" />;
+              return <path key={goal.id} d={`M ${x1} ${y1} C ${middle} ${y1}, ${middle} ${y2}, ${x2} ${y2}`} fill="none" stroke={goal.done ? "#34d399" : goal.nodeType === "BRAND" ? "#22d3ee" : "#8b5cf6"} strokeWidth="2" strokeOpacity="0.65" />;
             })}
           </svg>
 
@@ -225,8 +228,8 @@ export default function OmnisMindMap() {
             if (!position) return null;
             const due = goal.targetDate?.slice(0, 10) || "";
             const overdue = Boolean(due && !goal.done && due < new Date().toISOString().slice(0, 10));
-            return <button key={goal.id} type="button" onClick={() => beginEdit(goal)} className={`absolute w-[260px] rounded-xl border p-4 text-left shadow-lg transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300 ${goal.done ? "border-emerald-700 bg-emerald-950/35" : overdue ? "border-rose-700 bg-rose-950/35" : "border-slate-600 bg-slate-900"}`} style={{ left: `${position.x}px`, top: `${position.y}px` }}>
-              <span className={`block text-[11px] font-bold uppercase tracking-wide ${goal.done ? "text-emerald-300" : overdue ? "text-rose-300" : "text-violet-300"}`}>{horizonLabel[goal.horizon] || goal.horizon}{goal.done ? " · Complete" : overdue ? " · Overdue" : ""}</span>
+            return <button key={goal.id} type="button" onClick={() => beginEdit(goal)} className={`absolute w-[260px] rounded-xl border p-4 text-left shadow-lg transition hover:-translate-y-0.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300 ${goal.done ? "border-emerald-700 bg-emerald-950/35" : overdue ? "border-rose-700 bg-rose-950/35" : goal.nodeType === "BRAND" ? "border-cyan-700 bg-cyan-950/30" : "border-slate-600 bg-slate-900"}`} style={{ left: `${position.x}px`, top: `${position.y}px` }}>
+              <span className={`block text-[11px] font-bold uppercase tracking-wide ${goal.done ? "text-emerald-300" : overdue ? "text-rose-300" : goal.nodeType === "BRAND" ? "text-cyan-300" : "text-violet-300"}`}>{(goal.nodeType || "OUTCOME").toLowerCase()} · {horizonLabel[goal.horizon] || goal.horizon}{goal.done ? " · Complete" : overdue ? " · Overdue" : ""}</span>
               <span className={`mt-1 block max-h-12 overflow-hidden font-semibold leading-6 ${goal.done ? "text-slate-400 line-through" : "text-slate-100"}`}>{goal.title}</span>
               <span className="mt-2 block truncate text-xs text-slate-400">{displayDate(goal.targetDate)}</span>
               {goal.purpose && <span className="mt-2 block max-h-10 overflow-hidden text-xs leading-5 text-slate-500">Why: {goal.purpose}</span>}
@@ -243,6 +246,7 @@ export default function OmnisMindMap() {
       <form onSubmit={adding ? addPin : updatePin} className="mt-4 grid gap-4 md:grid-cols-2">
         <label className="font-medium md:col-span-2">What needs to be built?<input required maxLength={180} value={title} onChange={(event) => setTitle(event.target.value)} className={input} placeholder="A concrete outcome or capability…" /></label>
         <label className="font-medium md:col-span-2">Why does it need to exist?<textarea rows={3} maxLength={1500} value={purpose} onChange={(event) => setPurpose(event.target.value)} className={input} placeholder="The problem it solves, value it creates, or reason it matters…" /></label>
+        <label className="font-medium">What type of pinpoint is this?<select value={nodeType} onChange={(event) => setNodeType(event.target.value)} className={input}>{pinpointTypes.map((item) => <option key={item} value={item}>{item.charAt(0) + item.slice(1).toLowerCase()}</option>)}</select></label>
         <label className="font-medium">Time scale<select value={horizon} onChange={(event) => setHorizon(event.target.value)} className={input}>{horizons.map((item) => <option key={item} value={item}>{horizonLabel[item]}</option>)}</select></label>
         <label className="font-medium">Target date <span className="text-xs font-normal text-slate-400">(optional)</span><input type="date" value={targetDate} onChange={(event) => setTargetDate(event.target.value)} className={input} /></label>
         <label className="font-medium md:col-span-2">Connects to<select value={parentId} onChange={(event) => setParentId(event.target.value)} className={input}><option value="">Operation OMNIS — north star</option>{goals.filter((goal) => goal.id !== selected?.id).map((goal) => <option key={goal.id} value={goal.id}>{goal.title}</option>)}</select><span className="mt-1 block text-xs font-normal text-slate-400">Choose the outcome this pinpoint supports. The line on the map and parent relationship on Timeline update together.</span></label>

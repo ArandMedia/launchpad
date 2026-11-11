@@ -6,7 +6,7 @@ const state = vi.hoisted(() => ({
   metric: null as null | { id: string; ownerId: string; domainKey: string; name: string },
   healthData: null as null | Record<string, unknown>,
   activities: [] as Array<Record<string, unknown>>,
-  goal: null as null | { id: string; ownerId: string; title: string; purpose: string; horizon: string; parentId: string | null; done: boolean; targetDate: Date | null; completedAt: Date | null },
+  goal: null as null | { id: string; ownerId: string; title: string; purpose: string; nodeType: string; horizon: string; parentId: string | null; done: boolean; targetDate: Date | null; completedAt: Date | null },
   goals: [] as Array<{ id: string; ownerId: string; parentId: string | null }>,
   routine: null as null | { id: string; ownerId: string; title: string; cadence: string; notes: string; active: boolean },
   action: null as null | { id: string; ownerId: string; title: string; status: string },
@@ -113,7 +113,7 @@ describe("LifeOS modular API", () => {
 
   it("edits and completes outcomes while preserving owner scope and target dates", async () => {
     state.ownerId = "owner-user";
-    state.goal = { id: "goal-1", ownerId: "owner-user", title: "Old title", purpose: "", horizon: "YEAR", parentId: null, done: false, targetDate: null, completedAt: null };
+    state.goal = { id: "goal-1", ownerId: "owner-user", title: "Old title", purpose: "", nodeType: "OUTCOME", horizon: "YEAR", parentId: null, done: false, targetDate: null, completedAt: null };
     const response = await PATCH(request("PATCH", { kind: "goal-update", id: "goal-1", domainKey: "HEALTH", title: "Run a 5K", targetDate: "2027-04-10", done: true }));
     expect(response.status).toBe(200);
     expect(state.goal).toMatchObject({ title: "Run a 5K", done: true });
@@ -124,16 +124,19 @@ describe("LifeOS modular API", () => {
 
   it("updates a mind-map purpose and connection while preventing loops", async () => {
     state.ownerId = "owner-user";
-    state.goal = { id: "goal-child", ownerId: "owner-user", title: "Build the platform", purpose: "", horizon: "YEAR", parentId: null, done: false, targetDate: null, completedAt: null };
+    state.goal = { id: "goal-child", ownerId: "owner-user", title: "Build the platform", purpose: "", nodeType: "OUTCOME", horizon: "YEAR", parentId: null, done: false, targetDate: null, completedAt: null };
     state.goals.push(
       { id: "goal-root", ownerId: "owner-user", parentId: null },
       { id: "goal-child", ownerId: "owner-user", parentId: "goal-root" },
       { id: "goal-grandchild", ownerId: "owner-user", parentId: "goal-child" },
     );
 
-    const response = await PATCH(request("PATCH", { kind: "goal-update", id: "goal-child", domainKey: "OMNIS", title: "Build the platform", purpose: "Connect the operating system", horizon: "PHASE", parentId: "goal-root", targetDate: null, done: false }));
+    const response = await PATCH(request("PATCH", { kind: "goal-update", id: "goal-child", domainKey: "OMNIS", title: "Build the platform", purpose: "Connect the operating system", nodeType: "BRAND", horizon: "PHASE", parentId: "goal-root", targetDate: null, done: false }));
     expect(response.status).toBe(200);
-    expect(state.goal).toMatchObject({ purpose: "Connect the operating system", horizon: "PHASE", parentId: "goal-root" });
+    expect(state.goal).toMatchObject({ purpose: "Connect the operating system", nodeType: "BRAND", horizon: "PHASE", parentId: "goal-root" });
+
+    const invalidType = await PATCH(request("PATCH", { kind: "goal-update", id: "goal-child", domainKey: "OMNIS", title: "Build the platform", purpose: "", nodeType: "UNKNOWN", horizon: "PHASE", parentId: "goal-root", targetDate: null, done: false }));
+    expect(invalidType.status).toBe(400);
 
     const cycle = await PATCH(request("PATCH", { kind: "goal-update", id: "goal-child", domainKey: "OMNIS", title: "Build the platform", purpose: "", horizon: "PHASE", parentId: "goal-grandchild", targetDate: null, done: false }));
     expect(cycle.status).toBe(400);
