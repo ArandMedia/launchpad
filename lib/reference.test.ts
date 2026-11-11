@@ -13,4 +13,9 @@ describe("reference navigation", () => {
     const html = '<a href="/">Calendar home</a>';
     expect(rewriteLaunchPADProjectsLink(html)).toBe(html);
   });
+
+  it("rewrites a back link with nested icon markup", () => {
+    const html = '<a class="back" href="/"><span aria-hidden="true">←</span><span>Back to LaunchPAD projects</span></a>';
+    expect(rewriteLaunchPADProjectsLink(html)).toContain('href="/?view=projects"');
+  });
 });
