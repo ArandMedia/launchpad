@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { decryptHealthPayload, encryptHealthPayload, isDomainKey } from "./lifeos-core";
+import { decryptCalendarFeedUrl, decryptHealthPayload, encryptCalendarFeedUrl, encryptHealthPayload, isDomainKey } from "./lifeos-core";
 
 describe("LifeOS modular core", () => {
   afterEach(() => delete process.env.LIFEOS_HEALTH_ENCRYPTION_KEY);
@@ -16,5 +16,12 @@ describe("LifeOS modular core", () => {
     expect(encrypted.ciphertext).not.toContain("72.4");
     expect(decryptHealthPayload(encrypted)).toEqual({ value: 72.4, note: "manual baseline" });
     expect(() => decryptHealthPayload({ ...encrypted, authTag: Buffer.alloc(16).toString("base64") })).toThrow();
+  });
+
+  it("encrypts public calendar subscription URLs with a separate key purpose", () => {
+    process.env.LIFEOS_HEALTH_ENCRYPTION_KEY = "test-health-key-with-at-least-24-characters";
+    const encrypted = encryptCalendarFeedUrl("https://calendar.example.com/private-token.ics");
+    expect(encrypted.urlCiphertext).not.toContain("private-token");
+    expect(decryptCalendarFeedUrl(encrypted)).toBe("https://calendar.example.com/private-token.ics");
   });
 });
