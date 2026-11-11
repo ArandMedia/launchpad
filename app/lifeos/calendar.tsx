@@ -19,6 +19,8 @@ import {
 } from "@/lib/lifeos-time";
 import { agendaFor, positionOverlappingBlocks, type BlockStatus, type TimeBlock } from "@/lib/lifeos-blocks";
 import type { ExternalCalendarEvent } from "@/lib/calendar-feeds";
+import { DOMAIN_LABELS } from "@/lib/lifeos-domains";
+import { routineOccurrences, type RoutineOccurrence, type ScheduledRoutine } from "@/lib/lifeos-routines";
 
 export type CalendarGoal = {
   id: string;
@@ -33,6 +35,7 @@ type Props = {
   goals: CalendarGoal[];
   blocks: TimeBlock[];
   externalEvents: ExternalCalendarEvent[];
+  routines: ScheduledRoutine[];
   initialLevel?: CalendarLevel;
   onEditGoal: (goal: CalendarGoal) => void;
   onCreateBlock: (startLocal: string, endLocal: string) => void;
@@ -44,6 +47,12 @@ function externalOverlapping(events: ExternalCalendarEvent[], tile: CalendarTile
   const range = localRangeToUtc(tile.start, tile.end);
   if (!range) return [];
   return events.filter((event) => new Date(event.startAt) < range.end && new Date(event.endAt) > range.start);
+}
+
+function routinesOverlapping(occurrences: RoutineOccurrence[], tile: CalendarTile) {
+  const range = localRangeToUtc(tile.start, tile.end);
+  if (!range) return [];
+  return occurrences.filter((occurrence) => new Date(occurrence.startAt) < range.end && new Date(occurrence.endAt) > range.start);
 }
 
 function overlapping(goals: CalendarGoal[], tile: CalendarTile) {
@@ -69,11 +78,12 @@ function monthDays(tile: CalendarTile) {
   return days;
 }
 
-export default function SemanticCalendar({ goals, blocks, externalEvents, initialLevel = "DAY", onEditGoal, onCreateBlock, onEditBlock, onStatusBlock }: Props) {
+export default function SemanticCalendar({ goals, blocks, externalEvents, routines, initialLevel = "DAY", onEditGoal, onCreateBlock, onEditBlock, onStatusBlock }: Props) {
   const [level, setLevel] = useState<CalendarLevel>(initialLevel);
   const [cursor, setCursor] = useState(() => nowInChicago());
   const [clock, setClock] = useState(() => new Date());
   const [selectedExternal, setSelectedExternal] = useState<ExternalCalendarEvent | null>(null);
+  const [selectedRoutine, setSelectedRoutine] = useState<RoutineOccurrence | null>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
   const nowLocal = nowInChicago(clock);
   const periodStart = floorLocal(cursor, level);
@@ -82,6 +92,10 @@ export default function SemanticCalendar({ goals, blocks, externalEvents, initia
   const scheduled = goals.filter((goal) => goal.startAt && goal.endAt);
   const unscheduledCount = goals.length - scheduled.length;
   const periodUtc = localRangeToUtc(periodStart, end);
+  const visibleRoutines = useMemo(() => {
+    const range = localRangeToUtc(periodStart, end);
+    return range ? routineOccurrences(routines, range.start, range.end) : [];
+  }, [end, periodStart, routines]);
   const visibleGoals = periodUtc
     ? scheduled.filter((goal) => new Date(goal.startAt!) < periodUtc.end && new Date(goal.endAt!) > periodUtc.start)
     : [];
@@ -98,11 +112,14 @@ export default function SemanticCalendar({ goals, blocks, externalEvents, initia
   const dayExternal = level === "DAY" && periodUtc
     ? externalEvents.filter((event) => new Date(event.startAt) < periodUtc.end && new Date(event.endAt) > periodUtc.start)
     : [];
+  const dayRoutines = level === "DAY" ? visibleRoutines : [];
   const { happeningNow, upNext, remaining } = agendaFor(dayBlocks, clock, isToday);
   const externalByBlockId = new Map(dayExternal.map((event) => [`external:${event.id}`, event]));
+  const routineByBlockId = new Map(dayRoutines.map((routine) => [routine.id, routine]));
   const positionedItems = positionOverlappingBlocks([
     ...dayBlocks,
     ...dayExternal.map((event) => ({ id: `external:${event.id}`, title: event.title, note: event.description, category: event.calendarName, status: "PLANNED" as const, startAt: event.startAt, endAt: event.endAt, objectiveId: null })),
+    ...dayRoutines.map((routine) => ({ id: routine.id, title: routine.title, note: routine.notes, category: `${DOMAIN_LABELS[routine.domainKey as keyof typeof DOMAIN_LABELS] ?? routine.domainKey} routine`, status: "PLANNED" as const, startAt: routine.startAt, endAt: routine.endAt, objectiveId: null })),
   ]);
 
   useEffect(() => {
@@ -209,8 +226,18 @@ export default function SemanticCalendar({ goals, blocks, externalEvents, initia
                 <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">{isToday ? `Today at ${timeLabel(clock.toISOString())}` : "Selected day"}</p>
                 <h4 id="agenda-heading" className="mt-1 text-lg font-semibold">Agenda & up next</h4>
               </div>
-              <span className="rounded-full bg-slate-800 px-3 py-1 text-sm text-slate-300">{dayBlocks.length + dayExternal.length} item{dayBlocks.length + dayExternal.length === 1 ? "" : "s"}</span>
+              <span className="rounded-full bg-slate-800 px-3 py-1 text-sm text-slate-300">{dayBlocks.length + dayExternal.length + dayRoutines.length} item{dayBlocks.length + dayExternal.length + dayRoutines.length === 1 ? "" : "s"}</span>
             </div>
+
+            {dayRoutines.length > 0 && <section className="mt-4" aria-labelledby="scheduled-routines-heading">
+              <h5 id="scheduled-routines-heading" className="text-sm font-semibold text-slate-300">Routines</h5>
+              <div className="mt-2 space-y-2">
+                {dayRoutines.map((routine) => <button key={routine.id} type="button" onClick={() => setSelectedRoutine(routine)} className="block min-h-11 w-full rounded-lg border border-cyan-700 bg-cyan-950/30 p-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300">
+                  <span className="flex items-start justify-between gap-3"><span className="font-semibold">{routine.title}</span><span className="shrink-0 text-xs text-cyan-300">{DOMAIN_LABELS[routine.domainKey as keyof typeof DOMAIN_LABELS] ?? routine.domainKey}</span></span>
+                  <span className="mt-1 block text-sm text-slate-300">{timeLabel(routine.startAt)}–{timeLabel(routine.endAt)} · recurring</span>
+                </button>)}
+              </div>
+            </section>}
 
             {dayExternal.length > 0 && <section className="mt-4" aria-labelledby="synced-calendars-heading">
               <h5 id="synced-calendars-heading" className="text-sm font-semibold text-slate-300">Synced calendars</h5>
@@ -222,7 +249,7 @@ export default function SemanticCalendar({ goals, blocks, externalEvents, initia
               </div>
             </section>}
 
-            {dayBlocks.length === 0 && dayExternal.length === 0 ? (
+            {dayBlocks.length === 0 && dayExternal.length === 0 && dayRoutines.length === 0 ? (
               <div className="mt-4 rounded-xl border border-dashed border-slate-600 p-4">
                 <p className="font-semibold">Your day is open.</p>
                 <p className="mt-1 text-sm leading-6 text-slate-400">Tap an open time on the timeline or use the button below. You can link the block to an objective without changing the objective’s planning span.</p>
@@ -307,7 +334,14 @@ export default function SemanticCalendar({ goals, blocks, externalEvents, initia
                   const width = `${Math.max(12, laneWidth - 0.75)}%`;
                   const left = `${15 + block.column * laneWidth}%`;
                   const external = externalByBlockId.get(block.id);
+                  const routine = routineByBlockId.get(block.id);
                   const inactive = ["COMPLETED", "SKIPPED"].includes(block.status);
+                  if (routine) return (
+                    <button key={block.id} type="button" onClick={(event) => { event.stopPropagation(); setSelectedRoutine(routine); }} className="absolute z-10 min-h-11 overflow-hidden rounded-lg border border-cyan-400 bg-cyan-800/90 px-2 py-1.5 text-left text-xs text-white shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-200" style={{ top: `${startMinute * 0.8}px`, height: `${Math.max(44, (endMinute - startMinute) * 0.8)}px`, width, left }} aria-label={`View recurring routine ${routine.title}, ${timeLabel(routine.startAt)} to ${timeLabel(routine.endAt)}`}>
+                      <span className="block truncate font-semibold">{routine.title}</span>
+                      <span className="block truncate opacity-90">Routine · {timeLabel(routine.startAt)}–{timeLabel(routine.endAt)}</span>
+                    </button>
+                  );
                   if (external) return (
                     <button key={block.id} type="button" onClick={(event) => { event.stopPropagation(); setSelectedExternal(external); }} className="absolute z-10 min-h-11 overflow-hidden rounded-lg border px-2 py-1.5 text-left text-xs text-white shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" style={{ top: `${startMinute * 0.8}px`, height: `${Math.max(44, (endMinute - startMinute) * 0.8)}px`, width, left, borderColor: external.color, backgroundColor: `${external.color}dd` }} aria-label={`View synced event ${external.title}, ${eventTime(external)}, from ${external.calendarName}`}>
                       <span className="block truncate font-semibold">{external.title}</span>
@@ -356,6 +390,7 @@ export default function SemanticCalendar({ goals, blocks, externalEvents, initia
         {tiles.map((tile) => {
           const tileGoals = overlapping(scheduled, tile);
           const tileEvents = externalOverlapping(externalEvents, tile);
+          const tileRoutines = routinesOverlapping(visibleRoutines, tile);
           const current = tile.start <= nowLocal && nowLocal < tile.end;
           return (
             <button key={tile.start} type="button" onClick={() => chooseTile(tile)} className={`min-h-16 touch-manipulation rounded-xl border p-3 text-left transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300 ${current ? "border-violet-300 bg-violet-950/50" : "border-slate-700 bg-slate-950/50 hover:border-slate-500 hover:bg-slate-800"}`} aria-label={`${tile.label}${current ? ", current period" : ""}${tile.nextLevel ? `, drill into ${tile.nextLevel.toLowerCase()}` : ""}`}>
@@ -365,8 +400,9 @@ export default function SemanticCalendar({ goals, blocks, externalEvents, initia
               </span>
               {level === "MONTH" && <span className="mt-2 grid grid-cols-7 gap-1 text-[10px] text-slate-400">{monthDays(tile).map((day) => <span key={day.start}>{day.label}</span>)}</span>}
               {tileGoals.slice(0, 3).map((goal) => <span key={goal.id} className="mt-2 block truncate rounded bg-violet-400/15 px-2 py-1 text-xs text-violet-100">{goal.title}</span>)}
-              {tileEvents.slice(0, Math.max(0, 3 - tileGoals.length)).map((event) => <span key={event.id} className="mt-2 block truncate rounded px-2 py-1 text-xs text-white" style={{ backgroundColor: `${event.color}88` }}>{event.title}</span>)}
-              {tileGoals.length + tileEvents.length > 3 && <span className="mt-1 block text-xs text-slate-400">+{tileGoals.length + tileEvents.length - 3} more</span>}
+              {tileRoutines.slice(0, Math.max(0, 3 - tileGoals.length)).map((routine) => <span key={routine.id} className="mt-2 block truncate rounded bg-cyan-700/70 px-2 py-1 text-xs text-white">{routine.title}</span>)}
+              {tileEvents.slice(0, Math.max(0, 3 - tileGoals.length - tileRoutines.length)).map((event) => <span key={event.id} className="mt-2 block truncate rounded px-2 py-1 text-xs text-white" style={{ backgroundColor: `${event.color}88` }}>{event.title}</span>)}
+              {tileGoals.length + tileRoutines.length + tileEvents.length > 3 && <span className="mt-1 block text-xs text-slate-400">+{tileGoals.length + tileRoutines.length + tileEvents.length - 3} more</span>}
             </button>
           );
         })}
@@ -378,6 +414,8 @@ export default function SemanticCalendar({ goals, blocks, externalEvents, initia
         <span>{unscheduledCount} unscheduled objective{unscheduledCount === 1 ? "" : "s"}</span>
         <span aria-hidden="true">•</span>
         <span>{externalEvents.length} synced calendar event{externalEvents.length === 1 ? "" : "s"}</span>
+        <span aria-hidden="true">•</span>
+        <span>{visibleRoutines.length} routine occurrence{visibleRoutines.length === 1 ? "" : "s"} in view</span>
       </div>
 
       {selectedExternal && <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/75 p-3 sm:items-center" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedExternal(null); }}>
@@ -392,6 +430,16 @@ export default function SemanticCalendar({ goals, blocks, externalEvents, initia
           </dl>
           {selectedExternal.eventUrl && <a href={selectedExternal.eventUrl} target="_blank" rel="noreferrer" className="mt-5 inline-flex min-h-11 items-center rounded-lg border border-slate-600 px-4 py-2 font-semibold hover:bg-slate-800">Open event link ↗</a>}
           <p className="mt-5 text-xs leading-5 text-slate-500">This event is synchronized from a public calendar feed. Edit it in the source calendar; LaunchPAD will update on the next refresh.</p>
+        </section>
+      </div>}
+      {selectedRoutine && <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/75 p-3 sm:items-center" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedRoutine(null); }}>
+        <section role="dialog" aria-modal="true" aria-labelledby="routine-occurrence-title" className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-cyan-700 bg-slate-900 p-5 shadow-2xl">
+          <button type="button" onClick={() => setSelectedRoutine(null)} className={`${control} mb-4`}>← Close</button>
+          <div className="flex items-center gap-2 text-sm font-semibold text-cyan-300"><span className="h-3 w-3 rounded-full bg-cyan-400" /><span>{DOMAIN_LABELS[selectedRoutine.domainKey as keyof typeof DOMAIN_LABELS] ?? selectedRoutine.domainKey}</span><span className="rounded-full border border-cyan-800 px-2 py-0.5 text-xs">Recurring routine</span></div>
+          <h3 id="routine-occurrence-title" className="mt-3 text-2xl font-bold">{selectedRoutine.title}</h3>
+          <p className="mt-4 text-base text-slate-100">{new Intl.DateTimeFormat("en-US", { timeZone: LIFEOS_TIME_ZONE, dateStyle: "full", timeStyle: "short" }).format(new Date(selectedRoutine.startAt))} – {timeLabel(selectedRoutine.endAt)}</p>
+          {selectedRoutine.notes && <p className="mt-4 whitespace-pre-wrap leading-6 text-slate-300">{selectedRoutine.notes}</p>}
+          <p className="mt-5 text-xs leading-5 text-slate-500">This occurrence comes from an active {selectedRoutine.cadence.toLowerCase()} routine. Edit or pause the routine in Pillars to change future Calendar appearances.</p>
         </section>
       </div>}
     </section>

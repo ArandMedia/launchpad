@@ -1,0 +1,6 @@
+ALTER TABLE "LifeOSRoutine"
+ADD COLUMN "scheduleTime" TEXT NOT NULL DEFAULT '',
+ADD COLUMN "scheduleDurationMinutes" INTEGER NOT NULL DEFAULT 30,
+ADD COLUMN "scheduleWeekdays" INTEGER[] NOT NULL DEFAULT ARRAY[]::INTEGER[],
+ADD COLUMN "scheduleDayOfMonth" INTEGER,
+ADD COLUMN "scheduleStartsOn" DATE;

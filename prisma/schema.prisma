@@ -292,15 +292,20 @@ model LifeOSDomainState {
 }
 
 model LifeOSRoutine {
-  id        String   @id @default(cuid())
-  ownerId   String
-  domainKey String
-  title     String
-  cadence   String   @default("WEEKLY")
-  active    Boolean  @default(true)
-  notes     String   @default("")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id                      String    @id @default(cuid())
+  ownerId                 String
+  domainKey               String
+  title                   String
+  cadence                 String    @default("WEEKLY")
+  active                  Boolean   @default(true)
+  notes                   String    @default("")
+  scheduleTime            String    @default("")
+  scheduleDurationMinutes Int       @default(30)
+  scheduleWeekdays        Int[]     @default([])
+  scheduleDayOfMonth      Int?
+  scheduleStartsOn        DateTime? @db.Date
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
 
   @@index([ownerId, domainKey, active])
 }

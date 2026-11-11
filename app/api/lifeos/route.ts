@@ -62,7 +62,7 @@ async function projectLinksFrom(body: Record<string, unknown>) {
 export async function GET() {
   const ownerId = await lifeOSOwner();
   if (!ownerId) return fail();
-  const [goals, reviews, rawBlocks] = await Promise.all([
+  const [goals, reviews, rawBlocks, routines] = await Promise.all([
     db.lifeOSGoal.findMany({ where: { ownerId }, orderBy: { createdAt: "desc" } }),
     db.lifeOSReview.findMany({ where: { ownerId }, orderBy: { date: "desc" }, take: 30 }),
     db.lifeOSTimeBlock.findMany({
@@ -70,6 +70,7 @@ export async function GET() {
       orderBy: { startAt: "asc" },
       include: { project: { include: { client: true } }, task: true, milestone: true },
     }),
+    db.lifeOSRoutine.findMany({ where: { ownerId }, orderBy: { createdAt: "desc" } }),
   ]);
   const blocks = rawBlocks.map(({ project, task, milestone, ...block }) => ({
     ...block,
@@ -77,7 +78,7 @@ export async function GET() {
     clientName: project ? project.client.companyName || project.client.name : null,
     linkedWorkTitle: task?.title ?? milestone?.title ?? null,
   }));
-  return NextResponse.json({ goals, reviews, blocks });
+  return NextResponse.json({ goals, reviews, blocks, routines });
 }
 
 export async function POST(req: NextRequest) {
