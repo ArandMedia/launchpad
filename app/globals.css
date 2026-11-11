@@ -97,7 +97,13 @@
 }
 .lifeos-shell-link:hover { border-color: rgb(124 58 237); background: rgb(15 23 42); }
 .lifeos-shell-link:focus-visible { outline: 2px solid rgb(196 181 253); outline-offset: 2px; }
-.lifeos-shell-link small { margin-top: .1rem; color: rgb(100 116 139); font-size: .7rem; }
+.lifeos-shell-link small {
+  margin-top: .1rem;
+  color: rgb(100 116 139);
+  font-size: .7rem;
+  line-height: 1.15;
+  white-space: nowrap;
+}
 .lifeos-shell-link--active { border-color: rgb(167 139 250); background: rgb(46 16 101 / .42); color: rgb(221 214 254); }
 
 .lifeos-workspace-grid,
@@ -164,7 +170,7 @@
 @media (min-width: 1180px) {
   .lifeos-shell-grid {
     grid-template-areas: "main nav";
-    grid-template-columns: minmax(0, 1fr) 14.5rem;
+    grid-template-columns: minmax(0, 1fr) 15.5rem;
     gap: 1.5rem;
   }
   .lifeos-shell-nav {
