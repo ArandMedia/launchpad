@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { getTeamSession } from "@/lib/current-session";
-import { REFERENCE_PAGES } from "@/lib/reference";
+import { REFERENCE_PAGES, rewriteLaunchPADProjectsLink } from "@/lib/reference";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +38,7 @@ input[type=file]{position:absolute;opacity:0;width:1px;height:1px}
   return new NextResponse(html, { status, headers: HEADERS });
 }
 
-const BACK = `<p><a href="/">&larr; LaunchPAD projects</a></p>`;
+const BACK = `<p><a href="/?view=projects">&larr; LaunchPAD projects</a></p>`;
 
 export async function GET(req: NextRequest, props: { params: Promise<{ slug: string }> }) {
   const params = await props.params;
@@ -57,7 +57,7 @@ export async function GET(req: NextRequest, props: { params: Promise<{ slug: str
 
   const wantsUpload = req.nextUrl.searchParams.get("upload") === "1";
   const doc = wantsUpload ? null : await db.referenceDoc.findUnique({ where: { slug: params.slug } });
-  if (doc) return new NextResponse(doc.html, { headers: HEADERS });
+  if (doc) return new NextResponse(rewriteLaunchPADProjectsLink(doc.html), { headers: HEADERS });
 
   return shell(
     page.title,

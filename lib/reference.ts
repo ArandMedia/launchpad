@@ -6,3 +6,11 @@ export const REFERENCE_PAGES: Record<string, { title: string }> = {
 };
 
 export const MAX_REFERENCE_BYTES = 3 * 1024 * 1024;
+
+export function rewriteLaunchPADProjectsLink(html: string) {
+  return html.replace(
+    /(<a\b[^>]*\bhref\s*=\s*)(["'])\/\2([^>]*>\s*(?:&larr;|←)?\s*(?:Back to\s+)?LaunchPAD projects\s*<\/a>)/gi,
+    (_match, prefix: string, quote: string, suffix: string) =>
+      `${prefix}${quote}/?view=projects${quote}${suffix}`,
+  );
+}
