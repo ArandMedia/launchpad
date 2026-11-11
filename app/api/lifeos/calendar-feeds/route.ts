@@ -26,8 +26,9 @@ function safeFeed(feed: { id: string; name: string; color: string; active: boole
 
 function requestedRange(req: NextRequest) {
   const now = new Date();
-  const defaultStart = new Date(now.valueOf() - 370 * 86_400_000);
-  const defaultEnd = new Date(now.valueOf() + 740 * 86_400_000);
+  // Keep the no-argument window inside the same three-year cap enforced below.
+  const defaultStart = new Date(now.valueOf() - 365 * 86_400_000);
+  const defaultEnd = new Date(now.valueOf() + 730 * 86_400_000);
   const start = new Date(req.nextUrl.searchParams.get("start") || defaultStart.toISOString());
   const end = new Date(req.nextUrl.searchParams.get("end") || defaultEnd.toISOString());
   if (Number.isNaN(start.valueOf()) || Number.isNaN(end.valueOf()) || start >= end || end.valueOf() - start.valueOf() > 3 * 366 * 86_400_000) return null;
