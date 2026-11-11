@@ -7,6 +7,13 @@ const fail = () => NextResponse.json({ error: "Not found" }, { status: 404 });
 const invalid = (message = "Invalid request") => NextResponse.json({ error: message }, { status: 400 });
 const text = (value: unknown, max: number) => typeof value === "string" ? value.trim().slice(0, max) : "";
 
+function targetDate(value: unknown) {
+  if (value === null || value === "" || value === undefined) return null;
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
+  const date = new Date(`${value}T12:00:00.000Z`);
+  return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value ? date : undefined;
+}
+
 async function activity(ownerId: string, domainKey: string, entityType: string, entityId: string, action: string, summary: string) {
   await db.lifeOSActivity.create({ data: { ownerId, domainKey, entityType, entityId, action, summary } });
 }
@@ -127,6 +134,39 @@ export async function PATCH(req: NextRequest) {
   const ownerId = await lifeOSOwner(); if (!ownerId) return fail();
   const body = await req.json().catch(() => null);
   if (!body || typeof body.id !== "string") return invalid("Invalid update");
+  if (body.kind === "goal-update") {
+    const title = text(body.title, 180);
+    const due = targetDate(body.targetDate);
+    if (!title || typeof body.done !== "boolean" || due === undefined) return invalid("Invalid outcome");
+    const updated = await db.lifeOSGoal.updateMany({
+      where: { id: body.id, ownerId },
+      data: { title, targetDate: due, done: body.done, completedAt: body.done ? new Date() : null },
+    });
+    if (!updated.count) return fail();
+    await activity(ownerId, isDomainKey(body.domainKey) ? body.domainKey : "OMNIS", "GOAL", body.id, "UPDATED", body.done ? `${title} completed` : `${title} updated`);
+    return NextResponse.json({ ok: true });
+  }
+  if (body.kind === "routine-update") {
+    const title = text(body.title, 180);
+    const cadence = ["DAILY", "WEEKLY", "MONTHLY"].includes(body.cadence) ? body.cadence : null;
+    if (!title || !cadence || typeof body.active !== "boolean") return invalid("Invalid routine");
+    const updated = await db.lifeOSRoutine.updateMany({
+      where: { id: body.id, ownerId },
+      data: { title, cadence, notes: text(body.notes, 1000), active: body.active },
+    });
+    if (!updated.count) return fail();
+    await activity(ownerId, isDomainKey(body.domainKey) ? body.domainKey : "OMNIS", "ROUTINE", body.id, "UPDATED", `${title} updated`);
+    return NextResponse.json({ ok: true });
+  }
+  if (body.kind === "action-update") {
+    const title = text(body.title, 180);
+    const status = ["OPEN", "DONE", "SKIPPED"].includes(body.status) ? body.status : null;
+    if (!title || !status) return invalid("Invalid action");
+    const updated = await db.lifeOSAction.updateMany({ where: { id: body.id, ownerId }, data: { title, status } });
+    if (!updated.count) return fail();
+    await activity(ownerId, isDomainKey(body.domainKey) ? body.domainKey : "OMNIS", "ACTION", body.id, "UPDATED", `${title} updated`);
+    return NextResponse.json({ ok: true });
+  }
   if (body.kind === "routine-status") {
     const updated = await db.lifeOSRoutine.updateMany({ where: { id: body.id, ownerId }, data: { active: Boolean(body.active) } });
     if (!updated.count) return fail();

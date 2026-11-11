@@ -23,6 +23,13 @@ function scheduleFrom(body: Record<string, unknown>) {
   return { startAt, endAt };
 }
 
+function targetDateFrom(value: unknown) {
+  if (value === null || value === "" || value === undefined) return null;
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return undefined;
+  const date = new Date(`${value}T12:00:00.000Z`);
+  return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value ? date : undefined;
+}
+
 async function projectLinksFrom(body: Record<string, unknown>) {
   const projectId = typeof body.projectId === "string" && body.projectId ? body.projectId : null;
   const taskId = typeof body.taskId === "string" && body.taskId ? body.taskId : null;
@@ -90,7 +97,9 @@ export async function POST(req: NextRequest) {
     const targetValue = body.targetValue === null || body.targetValue === undefined || body.targetValue === "" ? null : Number(body.targetValue);
     if (targetValue !== null && !Number.isFinite(targetValue)) return NextResponse.json({ error: "Invalid target" }, { status: 400 });
     const targetUnit = typeof body.targetUnit === "string" ? body.targetUnit.trim().slice(0, 40) : "";
-    const goal = await db.lifeOSGoal.create({ data: { ownerId, title, horizon: body.horizon, parentId, domainKey, targetValue, targetUnit, ...schedule } });
+    const targetDate = targetDateFrom(body.targetDate);
+    if (targetDate === undefined) return NextResponse.json({ error: "Invalid target date" }, { status: 400 });
+    const goal = await db.lifeOSGoal.create({ data: { ownerId, title, horizon: body.horizon, parentId, domainKey, targetValue, targetUnit, targetDate, ...schedule } });
     return NextResponse.json({ goal }, { status: 201 });
   }
   if (body.kind === "review") {
