@@ -382,7 +382,7 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
   }
 
   const input =
-    "lifeos-editable mt-1 w-full rounded-lg border border-slate-600 bg-slate-800 p-3 text-base text-slate-100 focus:border-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-300/40";
+    "lifeos-editable mt-1 min-w-0 w-full rounded-lg border border-slate-600 bg-slate-800 p-3 text-base text-slate-100 focus:border-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-300/40";
   const button =
     "min-h-11 touch-manipulation rounded-lg px-4 py-2 font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300 disabled:cursor-not-allowed disabled:opacity-50";
 
@@ -516,7 +516,7 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
         </section>
       )}
 
-      {mode === "timeline" && <section id="planning" aria-labelledby="planning-heading" className="lifeos-panel scroll-mt-24 min-w-0 rounded-2xl border border-slate-700 bg-slate-900 p-4 sm:p-5 xl:p-6">
+      {mode === "timeline" && <section id="planning" aria-labelledby="planning-heading" className="lifeos-panel lifeos-full-span scroll-mt-24 min-w-0 rounded-2xl border border-slate-700 bg-slate-900 p-4 sm:p-5 xl:p-6">
         <h2 id="planning-heading" className="text-xl font-semibold">Planning workspace</h2>
         <p className="mt-2 text-sm text-slate-400">Create outcomes across time horizons and connect them to a parent goal.</p>
         <form onSubmit={addGoal} className="lifeos-planning-form mt-4 space-y-4">
