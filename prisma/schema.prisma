@@ -216,12 +216,14 @@ model LifeOSGoal {
   domainKey   String            @default("OMNIS")
   targetValue Float?
   targetUnit  String            @default("")
+  targetDate  DateTime?         @db.Date
   timeBlocks  LifeOSTimeBlock[]
 
   @@index([ownerId, createdAt])
   @@index([ownerId, parentId])
   @@index([ownerId, startAt])
   @@index([ownerId, domainKey])
+  @@index([ownerId, targetDate])
 }
 
 // Daily execution is intentionally separate from long-horizon goals. A block

@@ -14,6 +14,7 @@ type StoredGoal = {
   domainKey: string;
   targetValue: number | null;
   targetUnit: string;
+  targetDate?: Date | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -304,6 +305,15 @@ describe("LifeOS API", () => {
     expect(state.goals[0]).toMatchObject({ startAt: null, endAt: null });
     expect((await POST(request("POST", { kind: "goal", title: "Half", horizon: "DAY", startAt: "2026-11-10T15:00:00.000Z" }))).status).toBe(400);
     expect((await PATCH(request("PATCH", { action: "schedule", id: state.goals[0].id, startAt: "2026-11-10T17:00:00.000Z", endAt: "2026-11-10T15:00:00.000Z" }))).status).toBe(400);
+  });
+
+  it("stores an optional outcome target date and rejects impossible dates", async () => {
+    state.ownerId = "owner-user";
+    const response = await POST(request("POST", { kind: "goal", title: "Run a 5K", horizon: "YEAR", domainKey: "HEALTH", targetDate: "2027-04-10" }));
+    const goal = (await response.json()).goal as StoredGoal;
+    expect(response.status).toBe(201);
+    expect(new Date(goal.targetDate!).toISOString().slice(0, 10)).toBe("2027-04-10");
+    expect((await POST(request("POST", { kind: "goal", title: "Impossible", horizon: "YEAR", targetDate: "2027-02-30" }))).status).toBe(400);
   });
 
   it("validates horizons, dates, and update ownership", async () => {

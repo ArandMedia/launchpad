@@ -6,6 +6,9 @@ const state = vi.hoisted(() => ({
   metric: null as null | { id: string; ownerId: string; domainKey: string; name: string },
   healthData: null as null | Record<string, unknown>,
   activities: [] as Array<Record<string, unknown>>,
+  goal: null as null | { id: string; ownerId: string; title: string; done: boolean; targetDate: Date | null; completedAt: Date | null },
+  routine: null as null | { id: string; ownerId: string; title: string; cadence: string; notes: string; active: boolean },
+  action: null as null | { id: string; ownerId: string; title: string; status: string },
 }));
 
 vi.mock("@/lib/lifeos-auth", () => ({ lifeOSOwner: vi.fn(async () => state.ownerId) }));
@@ -28,6 +31,27 @@ vi.mock("@/lib/db", () => ({
     lifeOSActivity: {
       create: vi.fn(async ({ data }) => { state.activities.push(data); return { id: `activity-${state.activities.length}`, ...data }; }),
     },
+    lifeOSGoal: {
+      updateMany: vi.fn(async ({ where, data }) => {
+        if (!state.goal || state.goal.id !== where.id || state.goal.ownerId !== where.ownerId) return { count: 0 };
+        Object.assign(state.goal, data);
+        return { count: 1 };
+      }),
+    },
+    lifeOSRoutine: {
+      updateMany: vi.fn(async ({ where, data }) => {
+        if (!state.routine || state.routine.id !== where.id || state.routine.ownerId !== where.ownerId) return { count: 0 };
+        Object.assign(state.routine, data);
+        return { count: 1 };
+      }),
+    },
+    lifeOSAction: {
+      updateMany: vi.fn(async ({ where, data }) => {
+        if (!state.action || state.action.id !== where.id || state.action.ownerId !== where.ownerId) return { count: 0 };
+        Object.assign(state.action, data);
+        return { count: 1 };
+      }),
+    },
   },
 }));
 
@@ -47,6 +71,9 @@ describe("LifeOS modular API", () => {
     state.metric = null;
     state.healthData = null;
     state.activities.length = 0;
+    state.goal = null;
+    state.routine = null;
+    state.action = null;
     process.env.LIFEOS_HEALTH_ENCRYPTION_KEY = "test-health-key-with-at-least-24-characters";
   });
 
@@ -79,5 +106,25 @@ describe("LifeOS modular API", () => {
     const response = await POST(request("POST", { kind: "measurement", metricId: "metric-foreign", value: 80, observedAt: "2026-11-10T12:00:00.000Z" }));
     expect(response.status).toBe(400);
     expect(state.healthData).toBeNull();
+  });
+
+  it("edits and completes outcomes while preserving owner scope and target dates", async () => {
+    state.ownerId = "owner-user";
+    state.goal = { id: "goal-1", ownerId: "owner-user", title: "Old title", done: false, targetDate: null, completedAt: null };
+    const response = await PATCH(request("PATCH", { kind: "goal-update", id: "goal-1", domainKey: "HEALTH", title: "Run a 5K", targetDate: "2027-04-10", done: true }));
+    expect(response.status).toBe(200);
+    expect(state.goal).toMatchObject({ title: "Run a 5K", done: true });
+    expect(state.goal?.targetDate?.toISOString().slice(0, 10)).toBe("2027-04-10");
+    expect(state.goal?.completedAt).toBeInstanceOf(Date);
+    expect((await PATCH(request("PATCH", { kind: "goal-update", id: "goal-1", title: "Bad", targetDate: "2027-02-30", done: false }))).status).toBe(400);
+  });
+
+  it("edits and pauses routines without deleting their history", async () => {
+    state.ownerId = "owner-user";
+    state.routine = { id: "routine-1", ownerId: "owner-user", title: "Walk", cadence: "DAILY", notes: "", active: true };
+    expect((await PATCH(request("PATCH", { kind: "routine-update", id: "routine-1", domainKey: "HEALTH", title: "Morning walk", cadence: "DAILY", notes: "Twenty minutes after breakfast", active: true }))).status).toBe(200);
+    expect(state.routine).toMatchObject({ title: "Morning walk", notes: "Twenty minutes after breakfast", active: true });
+    expect((await PATCH(request("PATCH", { kind: "routine-status", id: "routine-1", domainKey: "HEALTH", active: false }))).status).toBe(200);
+    expect(state.routine?.active).toBe(false);
   });
 });
