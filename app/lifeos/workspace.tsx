@@ -54,6 +54,7 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
   const [blocks, setBlocks] = useState<TimeBlock[]>([]);
   const [externalEvents, setExternalEvents] = useState<ExternalCalendarEvent[]>([]);
   const [projectAgenda, setProjectAgenda] = useState<ProjectAgendaItem[]>([]);
+  const [projectAgendaOpen, setProjectAgendaOpen] = useState(false);
   const [horizon, setHorizon] = useState("SPRINT");
   const [goalDomainKey, setGoalDomainKey] = useState<LifeOSDomainKey>("OMNIS");
   const [title, setTitle] = useState("");
@@ -258,6 +259,7 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
     setBlockMilestoneId(item.kind === "MILESTONE" ? item.id : "");
     setBlockProjectName(item.projectName);
     setBlockClientName(item.clientName);
+    setProjectAgendaOpen(false);
     setBlockEditorOpen(true);
     setConfirmDeleteBlock(false);
     setError("");
@@ -392,19 +394,30 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
       )}
 
       {mode !== "reviews" && (
-        <section aria-labelledby="project-agenda-heading" className="lifeos-full-span rounded-2xl border border-slate-700 bg-slate-900 p-4 sm:p-5 xl:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">Projects connected to time</p>
-              <h2 id="project-agenda-heading" className="mt-1 text-xl font-semibold">Project agenda</h2>
-              <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-400">Open tasks and milestones from internal and client projects. Schedule focused work without marking the underlying item complete.</p>
-            </div>
-            <span className="rounded-full bg-slate-800 px-3 py-1 text-sm text-slate-300">{projectAgenda.filter((item) => item.scheduledBlocks.length === 0).length} unscheduled</span>
-          </div>
-          {projectAgenda.length === 0 ? (
-            <p className="mt-4 rounded-xl border border-dashed border-slate-700 p-4 text-sm text-slate-400">No open project tasks or milestones need scheduling.</p>
-          ) : (
-            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        <section aria-labelledby="project-agenda-heading" className="lifeos-full-span rounded-2xl border border-slate-700 bg-slate-900 p-2 sm:p-3">
+          <h2 id="project-agenda-heading" className="sr-only">Project agenda</h2>
+          <button
+            type="button"
+            aria-expanded={projectAgendaOpen}
+            aria-controls="project-agenda-items"
+            onClick={() => setProjectAgendaOpen((open) => !open)}
+            className="flex min-h-14 w-full touch-manipulation items-center justify-between gap-3 rounded-xl px-3 py-2 text-left hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300"
+          >
+            <span className="flex min-w-0 items-center gap-3">
+              <span aria-hidden="true" className="text-xl text-violet-300">☰</span>
+              <span className="min-w-0">
+                <span className="block font-semibold text-slate-100">Project agenda</span>
+                <span className="block truncate text-xs text-slate-400">{projectAgenda.length} open · {projectAgenda.filter((item) => item.scheduledBlocks.length === 0).length} unscheduled</span>
+              </span>
+            </span>
+            <span className="shrink-0 text-sm font-semibold text-violet-300">{projectAgendaOpen ? "Hide" : "Show"} <span aria-hidden="true">{projectAgendaOpen ? "↑" : "↓"}</span></span>
+          </button>
+          {projectAgendaOpen && <div id="project-agenda-items" className="mt-2 border-t border-slate-700 px-2 pb-2 pt-4 sm:px-3">
+            <p className="text-sm leading-6 text-slate-400">Open tasks and milestones from internal and client projects. Schedule focused work without marking the underlying item complete.</p>
+            {projectAgenda.length === 0 ? (
+              <p className="mt-3 rounded-xl border border-dashed border-slate-700 p-4 text-sm text-slate-400">No open project tasks or milestones need scheduling.</p>
+            ) : (
+            <div className="mt-3 grid max-h-[32rem] gap-3 overflow-y-auto overscroll-contain pr-1 lg:grid-cols-2">
               {projectAgenda.map((item) => {
                 const nextBlock = item.scheduledBlocks[0];
                 return <article key={`${item.kind}:${item.id}`} className="rounded-xl border border-slate-700 bg-slate-950/60 p-4">
@@ -423,7 +436,8 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
                 </article>;
               })}
             </div>
-          )}
+            )}
+          </div>}
         </section>
       )}
 
