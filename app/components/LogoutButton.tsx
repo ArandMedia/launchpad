@@ -11,7 +11,7 @@ export default function LogoutButton() {
         router.push("/login");
         router.refresh();
       }}
-      className="text-sm text-slate-400 hover:text-slate-600"
+      className="inline-flex min-h-11 items-center rounded-lg px-2.5 text-sm font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600"
     >
       Sign out
     </button>

@@ -40,22 +40,22 @@ export default function ClientEditForm({ client }: { client: Client }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="grid gap-3">
+    <form onSubmit={handleSubmit} className="grid gap-4">
       <input
-        className="border border-slate-300 rounded px-3 py-2 text-sm"
+        className="lp-input"
         placeholder="Contact name"
         value={name}
         onChange={(e) => setName(e.target.value)}
         required
       />
       <input
-        className="border border-slate-300 rounded px-3 py-2 text-sm"
+        className="lp-input"
         placeholder="Company name"
         value={companyName}
         onChange={(e) => setCompanyName(e.target.value)}
       />
       <input
-        className="border border-slate-300 rounded px-3 py-2 text-sm"
+        className="lp-input"
         placeholder="Email"
         type="email"
         value={email}
@@ -63,16 +63,16 @@ export default function ClientEditForm({ client }: { client: Client }) {
         required
       />
       <input
-        className="border border-slate-300 rounded px-3 py-2 text-sm"
+        className="lp-input"
         placeholder="Phone"
         value={phone}
         onChange={(e) => setPhone(e.target.value)}
       />
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       <button
         type="submit"
         disabled={busy}
-        className="bg-slate-900 text-white rounded px-3 py-2 text-sm font-medium w-fit disabled:opacity-50"
+        className="lp-button-primary w-fit"
       >
         {busy ? "Saving…" : "Save changes"}
       </button>

@@ -41,7 +41,7 @@ export default function ClientsList({
           placeholder="Search clients by name, company, or email…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="border border-slate-200 rounded-lg px-4 py-2.5 text-sm mb-4 w-full bg-white"
+          className="lp-input mb-4"
         />
       )}
 
@@ -49,13 +49,13 @@ export default function ClientsList({
         {filtered.map((c) => (
           <div
             key={c.id}
-            className="flex items-center justify-between border border-slate-200 rounded-lg px-5 py-4 bg-white"
+            className="lp-card flex flex-wrap items-center justify-between gap-4 transition hover:border-violet-200 hover:shadow-md"
           >
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-medium text-slate-900">{c.companyName || c.name}</span>
                 {c.archivedAt && (
-                  <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-slate-200 text-slate-600">
+                  <span className="lp-badge border-slate-200 bg-slate-100 text-slate-600">
                     Archived
                   </span>
                 )}
@@ -64,17 +64,17 @@ export default function ClientsList({
                 {c.email} · {c._count.projects} project{c._count.projects === 1 ? "" : "s"}
               </div>
             </div>
-            <div className="flex items-center gap-5">
-              <Link href={`/clients/${c.id}/edit`} className="text-sm text-slate-500 hover:underline">
+            <div className="flex flex-wrap items-center gap-2">
+              <Link href={`/clients/${c.id}/edit`} className="lp-button-ghost">
                 Edit
               </Link>
               <a
                 href={`https://portal.arandmedia.com/${c.slug}`}
                 target="_blank"
                 rel="noreferrer"
-                className="text-sm text-blue-600 hover:underline"
+                className="lp-button-secondary"
               >
-                View portal →
+                View portal
               </a>
               <ClientRowActions
                 clientId={c.id}
@@ -87,13 +87,13 @@ export default function ClientsList({
         ))}
 
         {clients.length === 0 && (
-          <div className="text-slate-400 text-sm py-12 text-center border border-dashed border-slate-200 rounded-lg">
+          <div className="lp-empty">
             {emptyLabel}
           </div>
         )}
 
         {clients.length > 0 && filtered.length === 0 && (
-          <div className="text-slate-400 text-sm py-12 text-center border border-dashed border-slate-200 rounded-lg">
+          <div className="lp-empty">
             No clients match "{query}".
           </div>
         )}

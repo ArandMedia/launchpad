@@ -46,7 +46,7 @@ export default function ProjectsList({
           placeholder="Search projects by name, client, or status…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="border border-slate-200 rounded-lg px-4 py-2.5 text-sm mb-4 w-full bg-white"
+          className="lp-input mb-4"
         />
       )}
 
@@ -55,7 +55,7 @@ export default function ProjectsList({
           <Link
             key={p.id}
             href={`/projects/${p.id}`}
-            className="flex items-center justify-between border border-slate-200 rounded-lg px-5 py-4 hover:border-slate-400 transition-colors bg-white"
+            className="lp-card-interactive flex flex-wrap items-center justify-between gap-3"
           >
             <div>
               <div className="font-medium text-slate-900">{p.name}</div>
@@ -65,7 +65,7 @@ export default function ProjectsList({
               </div>
             </div>
             <span
-              className={`text-xs font-medium px-2.5 py-1 rounded-full ${statusColor[p.status]}`}
+              className={`lp-badge border-transparent ${statusColor[p.status]}`}
             >
               {p.status.replace("_", " ")}
             </span>
@@ -73,13 +73,13 @@ export default function ProjectsList({
         ))}
 
         {projects.length === 0 && (
-          <div className="text-slate-400 text-sm py-12 text-center border border-dashed border-slate-200 rounded-lg">
+          <div className="lp-empty">
             {emptyLabel}
           </div>
         )}
 
         {projects.length > 0 && filtered.length === 0 && (
-          <div className="text-slate-400 text-sm py-12 text-center border border-dashed border-slate-200 rounded-lg">
+          <div className="lp-empty">
             No projects match "{query}".
           </div>
         )}
