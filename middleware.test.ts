@@ -22,6 +22,13 @@ describe("LifeOS proxy boundaries", () => {
     expect(response.headers.get("location")).toBe("https://launchpad.example/login");
   });
 
+  it.each(["/icon.png", "/manifest.webmanifest"])("keeps installable app asset %s public", async (pathname) => {
+    const response = await proxy(new NextRequest(`https://launchpad.example${pathname}`));
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+  });
+
   it.each(["/lifeos", "/api/lifeos"])("returns a clean 404 to portal clients for %s", async (pathname) => {
     const token = await signSession({
       kind: "client",
