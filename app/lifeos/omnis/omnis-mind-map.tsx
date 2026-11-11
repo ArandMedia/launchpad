@@ -18,15 +18,19 @@ type Goal = {
 
 type DomainState = {
   domainKey: string;
+  currentState: string;
   desiredState: string;
   gap: string;
   activeSystem: string;
+  nextActions: string;
+  evidence: string;
 };
 
 type CoreData = { goals: Goal[]; domains: DomainState[] };
 type Position = { x: number; y: number; depth: number };
 
 const horizons = ["LIFETIME", "PHASE", "YEAR", "SPRINT", "MONTH", "WEEK", "DAY", "HOUR"] as const;
+const DEFAULT_MISSION = "Operation OMNIS is a lifelong project to establish universal access to the Commonwealth necessities—clean water, nutritious food, healthcare, education, and safe shelter—for every human on Earth.";
 const horizonLabel: Record<string, string> = {
   LIFETIME: "Life", PHASE: "Phase", YEAR: "Year", SPRINT: "13-week sprint", MONTH: "Month", WEEK: "Week", DAY: "Day", HOUR: "Hour",
 };
@@ -76,6 +80,8 @@ export default function OmnisMindMap() {
   const [horizon, setHorizon] = useState("YEAR");
   const [targetDate, setTargetDate] = useState("");
   const [parentId, setParentId] = useState("");
+  const [editingMission, setEditingMission] = useState(false);
+  const [missionDraft, setMissionDraft] = useState("");
 
   async function refresh() {
     const response = await fetch("/api/lifeos/core", { cache: "no-store" });
@@ -132,10 +138,26 @@ export default function OmnisMindMap() {
     await send("/api/lifeos/core", "PATCH", { kind: "goal-update", id: goal.id, domainKey: "OMNIS", title: goal.title, purpose: goal.purpose, horizon: goal.horizon, targetDate: goal.targetDate?.slice(0, 10) || null, parentId: goal.parentId, done: !goal.done });
   }
 
+  async function saveMission(event: FormEvent) {
+    event.preventDefault();
+    const saved = await send("/api/lifeos/core", "POST", {
+      kind: "domain-state",
+      domainKey: "OMNIS",
+      currentState: mission?.currentState || "",
+      desiredState: missionDraft,
+      gap: mission?.gap || "",
+      activeSystem: mission?.activeSystem || "",
+      nextActions: mission?.nextActions || "",
+      evidence: mission?.evidence || "",
+    });
+    if (saved) setEditingMission(false);
+  }
+
   if (!data && !error) return <div className="mt-5 rounded-2xl border border-slate-800 bg-slate-900 p-6 text-slate-400" role="status">Loading Operation OMNIS…</div>;
 
-  const rootTitle = mission?.desiredState || "Operation OMNIS";
-  const rootSubtitle = mission?.activeSystem || mission?.gap || "Define the mission, then connect the outcomes that make it real.";
+  const missionText = mission?.desiredState || DEFAULT_MISSION;
+  const rootTitle = "Operation OMNIS";
+  const rootSubtitle = missionText;
 
   return <div className="mt-5 space-y-5">
     <p className="sr-only" role="status" aria-live="polite">{status}</p>
@@ -152,6 +174,18 @@ export default function OmnisMindMap() {
           <button type="button" onClick={() => beginAdd()} className={`${button} bg-violet-400 text-slate-950 hover:bg-violet-300`}>+ Add pinpoint</button>
           <Link href="/lifeos/timeline" className={`${button} inline-flex items-center border border-slate-600 hover:bg-slate-800`}>Open Timeline</Link>
         </div>
+      </div>
+
+      <div className="mt-4 rounded-2xl border border-violet-700 bg-gradient-to-br from-violet-950/70 to-slate-950 p-4 sm:p-5">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="max-w-4xl">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-violet-300">The mission</p>
+            <p className="mt-2 text-lg font-semibold leading-8 text-white sm:text-xl">{missionText}</p>
+            <p className="mt-2 text-sm leading-6 text-slate-400">Every pinpoint should show which necessity it advances, why the work matters, what it depends on, and where it belongs on the lifelong timeline.</p>
+          </div>
+          <button type="button" onClick={() => { setMissionDraft(missionText); setEditingMission(true); }} className={`${button} shrink-0 border border-violet-700 text-violet-200 hover:bg-violet-950`}>Edit mission</button>
+        </div>
+        {editingMission && <form onSubmit={saveMission} className="mt-4 rounded-xl border border-slate-700 bg-slate-900/80 p-4"><label className="font-medium">Mission statement<textarea required rows={4} maxLength={6000} value={missionDraft} onChange={(event) => setMissionDraft(event.target.value)} className={input} /></label><div className="mt-3 flex flex-wrap gap-2"><button disabled={busy} className={`${button} bg-violet-400 text-slate-950`}>Save mission</button><button type="button" onClick={() => setEditingMission(false)} className={`${button} border border-slate-700`}>Cancel</button></div></form>}
       </div>
 
       <div className="mt-4 flex flex-wrap gap-3 text-xs text-slate-400" aria-label="Map legend">
