@@ -29,7 +29,7 @@ export function DomainSummary({ domains, compact = false }: { domains: LifeOSDom
   const { data, error } = useCore();
   if (error) return <p role="alert" className="rounded-xl border border-red-700 p-3 text-red-300">{error}</p>;
   if (!data) return <p className="rounded-xl border border-slate-800 p-4 text-slate-400" role="status">Loading operating context…</p>;
-  return <div className={`grid gap-4 ${compact ? "md:grid-cols-3" : "md:grid-cols-2 xl:grid-cols-3"}`}>
+  return <div className={`grid gap-4 ${compact ? "md:grid-cols-3" : "lg:grid-cols-3"}`}>
     {domains.map((key) => { const state = data.domains.find((item) => item.domainKey === key); const outcomes = data.goals.filter((item) => item.domainKey === key && !item.done); const actions = data.actions.filter((item) => item.domainKey === key && item.status === "OPEN"); return <Link key={key} href={domainHref[key]} className="group min-h-36 rounded-2xl border border-slate-700 bg-slate-900 p-4 transition hover:border-violet-700 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300">
       <div className="flex items-start justify-between gap-3"><h3 className="font-semibold group-hover:text-violet-200">{DOMAIN_LABELS[key]}</h3><span className="text-sm text-slate-500">{outcomes.length} outcome{outcomes.length === 1 ? "" : "s"}</span></div>
       <p className="mt-3 line-clamp-2 text-sm text-slate-400">{state?.currentState || "Current state not established yet."}</p><p className="mt-3 text-xs text-slate-500">{actions.length} open next action{actions.length === 1 ? "" : "s"} · Open workspace →</p>
