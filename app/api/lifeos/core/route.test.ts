@@ -10,6 +10,7 @@ const state = vi.hoisted(() => ({
   goals: [] as Array<{ id: string; ownerId: string; parentId: string | null }>,
   routine: null as null | { id: string; ownerId: string; title: string; cadence: string; notes: string; active: boolean; objectiveId?: string | null; scheduleTime?: string; scheduleDurationMinutes?: number; scheduleWeekdays?: number[]; scheduleDayOfMonth?: number | null; scheduleStartsOn?: Date | null },
   action: null as null | { id: string; ownerId: string; title: string; status: string },
+  principle: null as null | { id: string; ownerId: string; domainKey: string; kind: string; title: string; statement: string; why: string; importance: number; active: boolean },
 }));
 
 vi.mock("@/lib/lifeos-auth", () => ({ lifeOSOwner: vi.fn(async () => state.ownerId) }));
@@ -55,6 +56,17 @@ vi.mock("@/lib/db", () => ({
         return { count: 1 };
       }),
     },
+    lifeOSPrinciple: {
+      create: vi.fn(async ({ data }) => {
+        state.principle = { id: "principle-1", active: true, ...data };
+        return state.principle;
+      }),
+      updateMany: vi.fn(async ({ where, data }) => {
+        if (!state.principle || state.principle.id !== where.id || state.principle.ownerId !== where.ownerId || state.principle.domainKey !== where.domainKey) return { count: 0 };
+        Object.assign(state.principle, data);
+        return { count: 1 };
+      }),
+    },
   },
 }));
 
@@ -78,6 +90,7 @@ describe("LifeOS modular API", () => {
     state.goals.length = 0;
     state.routine = null;
     state.action = null;
+    state.principle = null;
     process.env.LIFEOS_HEALTH_ENCRYPTION_KEY = "test-health-key-with-at-least-24-characters";
   });
 
@@ -165,5 +178,19 @@ describe("LifeOS modular API", () => {
 
     const foreignObjective = await PATCH(request("PATCH", { kind: "routine-update", id: "routine-1", domainKey: "WEALTH", title: "Upper body and run", cadence: "WEEKLY", notes: "", active: true, objectiveId: "goal-health", scheduleTime: "07:00", scheduleDurationMinutes: 60, scheduleWeekdays: [1], scheduleStartsOn: "2026-11-09" }));
     expect(foreignObjective.status).toBe(400);
+  });
+
+  it("creates and updates owner-scoped self-knowledge with changing importance", async () => {
+    state.ownerId = "owner-user";
+    const created = await POST(request("POST", { kind: "principle", domainKey: "SELF", principleKind: "STRENGTH", title: "Systems thinking", statement: "I connect parts into a whole", why: "It helps me build useful things", importance: 5 }));
+    expect(created.status).toBe(201);
+    expect(state.principle).toMatchObject({ ownerId: "owner-user", kind: "STRENGTH", importance: 5, active: true });
+
+    const updated = await PATCH(request("PATCH", { kind: "principle-update", id: "principle-1", domainKey: "SELF", principleKind: "GROWTH_EDGE", title: "Overcommitting", statement: "I say yes too quickly", why: "My time is more constrained now", importance: 4, active: true }));
+    expect(updated.status).toBe(200);
+    expect(state.principle).toMatchObject({ kind: "GROWTH_EDGE", title: "Overcommitting", importance: 4 });
+
+    expect((await POST(request("POST", { kind: "principle", domainKey: "SELF", principleKind: "VALUE", title: "Family", importance: 6 }))).status).toBe(400);
+    expect((await PATCH(request("PATCH", { kind: "principle-update", id: "principle-1", domainKey: "SELF", principleKind: "UNKNOWN", title: "Invalid", importance: 3, active: true }))).status).toBe(400);
   });
 });

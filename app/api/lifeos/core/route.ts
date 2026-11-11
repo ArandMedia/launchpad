@@ -8,6 +8,7 @@ const invalid = (message = "Invalid request") => NextResponse.json({ error: mess
 const text = (value: unknown, max: number) => typeof value === "string" ? value.trim().slice(0, max) : "";
 const horizons = ["LIFETIME", "PHASE", "YEAR", "SPRINT", "MONTH", "WEEK", "DAY", "HOUR"] as const;
 const nodeTypes = ["OUTCOME", "BRAND", "INFRASTRUCTURE", "PROGRAM", "PARTNERSHIP", "MILESTONE"] as const;
+const selfKnowledgeKinds = ["VALUE", "CONVICTION", "STRENGTH", "GROWTH_EDGE"] as const;
 
 function targetDate(value: unknown) {
   if (value === null || value === "" || value === undefined) return null;
@@ -141,7 +142,10 @@ export async function POST(req: NextRequest) {
   if (body.kind === "principle") {
     if (!isDomainKey(body.domainKey) || !["SELF", "OMNIS"].includes(body.domainKey)) return invalid("Invalid principle domain");
     const title = text(body.title, 180); if (!title) return invalid("Principle title required");
-    const record = await db.lifeOSPrinciple.create({ data: { ownerId, domainKey: body.domainKey, title, statement: text(body.statement, 3000) } });
+    const kind = selfKnowledgeKinds.includes(body.principleKind) ? body.principleKind : "CONVICTION";
+    const importance = body.importance === undefined ? 3 : Number(body.importance);
+    if (!Number.isInteger(importance) || importance < 1 || importance > 5) return invalid("Importance must be between 1 and 5");
+    const record = await db.lifeOSPrinciple.create({ data: { ownerId, domainKey: body.domainKey, kind, title, statement: text(body.statement, 3000), why: text(body.why, 3000), importance } });
     await activity(ownerId, body.domainKey, "PRINCIPLE", record.id, "CREATED", title);
     return NextResponse.json({ record }, { status: 201 });
   }
@@ -243,6 +247,20 @@ export async function PATCH(req: NextRequest) {
     const updated = await db.lifeOSAction.updateMany({ where: { id: body.id, ownerId }, data: { status } });
     if (!updated.count) return fail();
     await activity(ownerId, isDomainKey(body.domainKey) ? body.domainKey : "OMNIS", "ACTION", body.id, "STATUS_CHANGED", `Action ${status.toLowerCase()}`);
+    return NextResponse.json({ ok: true });
+  }
+  if (body.kind === "principle-update") {
+    const domainKey = isDomainKey(body.domainKey) && ["SELF", "OMNIS"].includes(body.domainKey) ? body.domainKey : null;
+    const title = text(body.title, 180);
+    const kind = selfKnowledgeKinds.includes(body.principleKind) ? body.principleKind : null;
+    const importance = Number(body.importance);
+    if (!domainKey || !title || !kind || !Number.isInteger(importance) || importance < 1 || importance > 5 || typeof body.active !== "boolean") return invalid("Invalid self-knowledge item");
+    const updated = await db.lifeOSPrinciple.updateMany({
+      where: { id: body.id, ownerId, domainKey },
+      data: { title, kind, statement: text(body.statement, 3000), why: text(body.why, 3000), importance, active: body.active },
+    });
+    if (!updated.count) return fail();
+    await activity(ownerId, domainKey, "PRINCIPLE", body.id, "UPDATED", `${title} updated`);
     return NextResponse.json({ ok: true });
   }
   if (body.kind === "integration-disconnect") {

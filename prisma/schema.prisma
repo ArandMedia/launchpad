@@ -379,16 +379,20 @@ model LifeOSHealthMeasurement {
 }
 
 model LifeOSPrinciple {
-  id        String   @id @default(cuid())
-  ownerId   String
-  domainKey String
-  title     String
-  statement String   @default("")
-  active    Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  ownerId    String
+  domainKey  String
+  kind       String   @default("CONVICTION")
+  title      String
+  statement  String   @default("")
+  why        String   @default("")
+  importance Int      @default(3)
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   @@index([ownerId, domainKey, active])
+  @@index([ownerId, domainKey, kind, importance])
 }
 
 model LifeOSRelationshipCommitment {
