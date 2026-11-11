@@ -2,11 +2,11 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import SemanticCalendar, { type CalendarGoal } from "./calendar";
-import { LIFEOS_TIME_ZONE, chicagoLocalToUtc, utcToChicagoInput } from "@/lib/lifeos-time";
+import { LIFEOS_TIME_ZONE, addLocal, chicagoLocalToUtc, localRangeToUtc, utcToChicagoInput } from "@/lib/lifeos-time";
 import { BLOCK_STATUSES, type BlockStatus, type TimeBlock } from "@/lib/lifeos-blocks";
 import { DOMAIN_LABELS, LIFEOS_DOMAINS, type LifeOSDomainKey } from "@/lib/lifeos-domains";
 import type { ExternalCalendarEvent } from "@/lib/calendar-feeds";
-import type { ScheduledRoutine } from "@/lib/lifeos-routines";
+import { routineOccurrenceKey, routineOccurrences, type RoutineOccurrenceRecord, type RoutineOccurrenceStatus, type ScheduledRoutine } from "@/lib/lifeos-routines";
 
 type Goal = {
   id: string;
@@ -55,6 +55,7 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
   const [blocks, setBlocks] = useState<TimeBlock[]>([]);
   const [externalEvents, setExternalEvents] = useState<ExternalCalendarEvent[]>([]);
   const [routines, setRoutines] = useState<ScheduledRoutine[]>([]);
+  const [routineRecords, setRoutineRecords] = useState<RoutineOccurrenceRecord[]>([]);
   const [projectAgenda, setProjectAgenda] = useState<ProjectAgendaItem[]>([]);
   const [projectAgendaOpen, setProjectAgendaOpen] = useState(false);
   const [horizon, setHorizon] = useState("SPRINT");
@@ -107,6 +108,7 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
     setGoals(data.goals);
     setReviews(data.reviews);
     setBlocks(data.blocks ?? []);
+    setRoutineRecords((data.routineRecords ?? []).map((record: RoutineOccurrenceRecord) => ({ ...record, date: record.date.slice(0, 10) })));
     const activeOutcomes = new Map<string, Goal[]>();
     for (const goal of data.goals as Goal[]) {
       if (!goal.done) activeOutcomes.set(goal.domainKey, [...(activeOutcomes.get(goal.domainKey) ?? []), goal]);
@@ -339,6 +341,13 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
     if (saved && editingBlockId === block.id) setBlockStatus(nextStatus);
   }
 
+  async function setRoutineStatus(routineId: string, occurrenceDate: string, nextStatus: RoutineOccurrenceStatus) {
+    await patch(
+      { action: "routine-status", id: routineId, date: occurrenceDate, status: nextStatus },
+      nextStatus === "COMPLETED" ? "Routine completed" : nextStatus === "SKIPPED" ? "Routine skipped" : "Routine returned to open",
+    );
+  }
+
   async function deleteTimeBlock() {
     if (!editingBlockId) return;
     const deleted = await patchRequest("DELETE", { id: editingBlockId }, "Time block deleted");
@@ -395,6 +404,43 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
     "lifeos-editable mt-1 min-w-0 w-full rounded-lg border border-slate-600 bg-slate-800 p-3 text-base text-slate-100 focus:border-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-300/40";
   const button =
     "min-h-11 touch-manipulation rounded-lg px-4 py-2 font-semibold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300 disabled:cursor-not-allowed disabled:opacity-50";
+
+  const aarExecution = useMemo(() => {
+    const startLocal = `${date}T00:00`;
+    const range = localRangeToUtc(startLocal, addLocal(startLocal, "day", 1));
+    if (!range) return [];
+    const statusByOccurrence = new Map(routineRecords.map((record) => [routineOccurrenceKey(record.routineId, record.date), record.status]));
+    const routineItems = routineOccurrences(routines, range.start, range.end).map((occurrence) => ({
+      id: occurrence.id,
+      title: occurrence.title,
+      kind: "Routine" as const,
+      status: statusByOccurrence.get(routineOccurrenceKey(occurrence.routineId, date)) ?? "PLANNED",
+    }));
+    const blockItems = blocks
+      .filter((block) => new Date(block.startAt) < range.end && new Date(block.endAt) > range.start)
+      .map((block) => ({ id: block.id, title: block.title, kind: block.taskId || block.milestoneId ? "Project work" as const : "Time block" as const, status: block.status }));
+    return [...routineItems, ...blockItems].sort((left, right) => left.title.localeCompare(right.title));
+  }, [blocks, date, routineRecords, routines]);
+
+  const executionCounts = useMemo(() => ({
+    completed: aarExecution.filter((item) => item.status === "COMPLETED").length,
+    skipped: aarExecution.filter((item) => item.status === "SKIPPED").length,
+    open: aarExecution.filter((item) => !["COMPLETED", "SKIPPED"].includes(item.status)).length,
+  }), [aarExecution]);
+
+  function addExecutionToAAR() {
+    const groups = [
+      ["Completed", aarExecution.filter((item) => item.status === "COMPLETED")],
+      [date < localDateForInput(new Date()) ? "Not completed" : "Open", aarExecution.filter((item) => !["COMPLETED", "SKIPPED"].includes(item.status))],
+      ["Skipped", aarExecution.filter((item) => item.status === "SKIPPED")],
+    ] as const;
+    const summary = groups
+      .filter(([, items]) => items.length)
+      .map(([label, items]) => `${label}: ${items.map((item) => item.title).join(", ")}`)
+      .join("\n");
+    if (!summary) return;
+    setActual((current) => current.trim() ? `${current.trim()}\n\n${summary}` : summary);
+  }
 
   return (
     <div className="lifeos-workspace-grid mt-5 grid gap-4 sm:gap-5 xl:gap-6">
@@ -456,11 +502,13 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
         blocks={blocks}
         externalEvents={externalEvents}
         routines={routines}
+        routineRecords={routineRecords}
         initialLevel={mode === "timeline" ? "LIFE" : "DAY"}
         onEditGoal={beginSchedule}
         onCreateBlock={(start, end) => showBlockEditor(start, end)}
         onEditBlock={(block) => showBlockEditor("", "", block)}
         onStatusBlock={setTimeBlockStatus}
+        onStatusRoutine={setRoutineStatus}
       />}
 
       {mode !== "reviews" && blockEditorOpen && (
@@ -616,17 +664,41 @@ export default function Workspace({ mode = "today" }: { mode?: "today" | "timeli
 
       {mode === "reviews" && <section id="aar" aria-labelledby="review-heading" className="lifeos-panel lifeos-full-span scroll-mt-24 min-w-0 rounded-2xl border border-slate-700 bg-slate-900 p-4 sm:p-5 xl:p-6">
         <h2 id="review-heading" className="text-xl font-semibold">Daily After Action Review</h2>
-        <p className="mt-2 text-sm text-slate-400">Choosing a saved date loads that review for editing.</p>
+        <p className="mt-2 text-sm text-slate-400">Use the execution record to compare the plan with what was completed, left open, or intentionally skipped—then capture why.</p>
         <form onSubmit={addReview} className="lifeos-aar-form mt-4 space-y-4">
           <label className="block font-medium">
             Date
             <input type="date" required value={date} onChange={(event) => setDate(event.target.value)} className={input} />
           </label>
+          <section aria-labelledby="execution-record-heading" className="rounded-xl border border-slate-700 bg-slate-950/60 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <h3 id="execution-record-heading" className="font-semibold text-slate-100">Execution record</h3>
+                <p className="mt-1 text-sm text-slate-400">Agenda items for this date. Unchecked work stays open until you mark it complete or skipped.</p>
+              </div>
+              <div className="flex flex-wrap gap-2 text-xs font-semibold">
+                <span className="rounded-full bg-emerald-950 px-3 py-1 text-emerald-300">{executionCounts.completed} completed</span>
+                <span className="rounded-full bg-slate-800 px-3 py-1 text-slate-300">{executionCounts.open} {date < localDateForInput(new Date()) ? "not completed" : "open"}</span>
+                <span className="rounded-full bg-amber-950 px-3 py-1 text-amber-300">{executionCounts.skipped} skipped</span>
+              </div>
+            </div>
+            {aarExecution.length ? <div className="mt-4 grid gap-2 sm:grid-cols-2">
+              {aarExecution.map((item) => {
+                const complete = item.status === "COMPLETED";
+                const skipped = item.status === "SKIPPED";
+                return <div key={`${item.kind}:${item.id}`} className="flex min-w-0 items-start gap-3 rounded-lg border border-slate-800 p-3">
+                  <span aria-hidden="true" className={`mt-0.5 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${complete ? "bg-emerald-400 text-slate-950" : skipped ? "bg-amber-400 text-slate-950" : "border border-slate-600 text-slate-400"}`}>{complete ? "✓" : skipped ? "–" : ""}</span>
+                  <span className="min-w-0"><span className={`block break-words text-sm font-medium ${complete || skipped ? "text-slate-400 line-through" : "text-slate-100"}`}>{item.title}</span><span className="mt-0.5 block text-xs text-slate-500">{item.kind} · {complete ? "completed" : skipped ? "skipped" : date < localDateForInput(new Date()) ? "not completed" : "open"}</span></span>
+                </div>;
+              })}
+            </div> : <p className="mt-4 rounded-lg border border-dashed border-slate-700 p-3 text-sm text-slate-400">No routines or scheduled work blocks were on the agenda for this date.</p>}
+            {aarExecution.length > 0 && <button type="button" onClick={addExecutionToAAR} className={`${button} mt-4 border border-slate-600 text-sm hover:bg-slate-800`}>Add record to “What actually happened?”</button>}
+          </section>
           <div className="lifeos-aar-grid grid gap-4">{([
             ["What was intended?", intended, setIntended],
-            ["What actually happened?", actual, setActual],
-            ["What did you learn?", learned, setLearned],
-            ["What changes next?", next, setNext],
+            ["What actually happened—and why?", actual, setActual],
+            ["What worked, what did not, and what did you learn?", learned, setLearned],
+            ["What changes or carries forward next?", next, setNext],
           ] as const).map(([label, value, setter]) => (
             <label key={label} className="block font-medium">
               {label}

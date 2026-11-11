@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { lifeOSOwner } from "@/lib/lifeos-auth";
 import { BLOCK_STATUSES } from "@/lib/lifeos-blocks";
 import { isDomainKey } from "@/lib/lifeos-domains";
+import { ROUTINE_OCCURRENCE_STATUSES } from "@/lib/lifeos-routines";
 
 const horizons = ["LIFETIME", "PHASE", "YEAR", "SPRINT", "MONTH", "WEEK", "DAY", "HOUR"] as const;
 const nodeTypes = ["OUTCOME", "BRAND", "INFRASTRUCTURE", "PROGRAM", "PARTNERSHIP", "MILESTONE"] as const;
@@ -62,7 +63,7 @@ async function projectLinksFrom(body: Record<string, unknown>) {
 export async function GET() {
   const ownerId = await lifeOSOwner();
   if (!ownerId) return fail();
-  const [goals, reviews, rawBlocks, routines] = await Promise.all([
+  const [goals, reviews, rawBlocks, routines, routineRecords] = await Promise.all([
     db.lifeOSGoal.findMany({ where: { ownerId }, orderBy: { createdAt: "desc" } }),
     db.lifeOSReview.findMany({ where: { ownerId }, orderBy: { date: "desc" }, take: 30 }),
     db.lifeOSTimeBlock.findMany({
@@ -71,6 +72,7 @@ export async function GET() {
       include: { project: { include: { client: true } }, task: true, milestone: true },
     }),
     db.lifeOSRoutine.findMany({ where: { ownerId }, orderBy: { createdAt: "desc" }, include: { objective: { select: { title: true } } } }),
+    db.lifeOSRoutineOccurrence.findMany({ where: { ownerId }, orderBy: { date: "desc" } }),
   ]);
   const blocks = rawBlocks.map(({ project, task, milestone, ...block }) => ({
     ...block,
@@ -78,7 +80,7 @@ export async function GET() {
     clientName: project ? project.client.companyName || project.client.name : null,
     linkedWorkTitle: task?.title ?? milestone?.title ?? null,
   }));
-  return NextResponse.json({ goals, reviews, blocks, routines: routines.map(({ objective, ...routine }) => ({ ...routine, objectiveTitle: objective?.title ?? "" })) });
+  return NextResponse.json({ goals, reviews, blocks, routineRecords, routines: routines.map(({ objective, ...routine }) => ({ ...routine, objectiveTitle: objective?.title ?? "" })) });
 }
 
 export async function POST(req: NextRequest) {
@@ -152,6 +154,19 @@ export async function PATCH(req: NextRequest) {
   const body = await req.json().catch(() => null);
   if (!body || typeof body.id !== "string")
     return NextResponse.json({ error: "Invalid update" }, { status: 400 });
+  if (body.action === "routine-status") {
+    const date = targetDateFrom(body.date);
+    if (!date || !ROUTINE_OCCURRENCE_STATUSES.includes(body.status))
+      return NextResponse.json({ error: "Invalid routine status" }, { status: 400 });
+    const routine = await db.lifeOSRoutine.findFirst({ where: { id: body.id, ownerId }, select: { id: true } });
+    if (!routine) return fail();
+    const record = await db.lifeOSRoutineOccurrence.upsert({
+      where: { ownerId_routineId_date: { ownerId, routineId: routine.id, date } },
+      create: { ownerId, routineId: routine.id, date, status: body.status },
+      update: { status: body.status },
+    });
+    return NextResponse.json({ record });
+  }
   if (body.action === "schedule") {
     const schedule = scheduleFrom(body);
     if (!schedule) return NextResponse.json({ error: "Invalid schedule" }, { status: 400 });
