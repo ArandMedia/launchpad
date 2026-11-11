@@ -37,6 +37,9 @@ export default async function InternalLayout({ children }: { children: React.Rea
             >
               Creative Engineering
             </a>
+            <Link href="/settings" className="text-sm text-slate-500 hover:text-slate-900">
+              Settings
+            </Link>
           </nav>
           <div className="flex flex-wrap items-center gap-3">
             <Link href="/clients/new" className="text-sm text-slate-500 hover:text-slate-900">

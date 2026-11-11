@@ -4,6 +4,7 @@ import ProjectsList from "./ProjectsList";
 import { getTeamSession } from "@/lib/current-session";
 import { isLifeOSOwner } from "@/lib/lifeos-auth";
 import { redirect } from "next/navigation";
+import { landingHref, parseUserPreferences } from "@/lib/user-preferences";
 
 export const dynamic = "force-dynamic";
 
@@ -19,8 +20,12 @@ export default async function InternalDashboard(
   const showArchived = searchParams.archived === "1";
   const explicitlyOpenedProjects = searchParams.view === "projects" || showArchived;
 
-  if (isLifeOSOwner(await getTeamSession()) && !explicitlyOpenedProjects) {
-    redirect("/lifeos/today");
+  const session = await getTeamSession();
+  if (session && !explicitlyOpenedProjects) {
+    const canUseCalendar = isLifeOSOwner(session);
+    const user = await db.user.findUnique({ where: { id: session.userId }, select: { preferences: true } });
+    const landing = parseUserPreferences(user?.preferences, canUseCalendar).defaultLanding;
+    if (landing !== "PROJECTS") redirect(landingHref(landing));
   }
 
   const projects = await db.project.findMany({
