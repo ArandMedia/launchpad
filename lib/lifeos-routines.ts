@@ -7,6 +7,8 @@ export type ScheduledRoutine = {
   cadence: string;
   active: boolean;
   notes: string;
+  objectiveId: string | null;
+  objectiveTitle: string;
   scheduleTime: string;
   scheduleDurationMinutes: number;
   scheduleWeekdays: number[];
@@ -21,6 +23,7 @@ export type RoutineOccurrence = {
   domainKey: string;
   cadence: string;
   notes: string;
+  objectiveTitle: string;
   startAt: string;
   endAt: string;
 };
@@ -65,6 +68,7 @@ export function routineOccurrences(routines: ScheduledRoutine[], rangeStart: Dat
         domainKey: routine.domainKey,
         cadence: routine.cadence,
         notes: routine.notes,
+        objectiveTitle: routine.objectiveTitle,
         startAt,
         endAt,
       });

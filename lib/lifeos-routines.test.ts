@@ -9,6 +9,8 @@ function routine(overrides: Partial<ScheduledRoutine> = {}): ScheduledRoutine {
     cadence: "WEEKLY",
     active: true,
     notes: "30 minute run",
+    objectiveId: "goal-1",
+    objectiveTitle: "Build durable health",
     scheduleTime: "07:00",
     scheduleDurationMinutes: 60,
     scheduleWeekdays: [1],
