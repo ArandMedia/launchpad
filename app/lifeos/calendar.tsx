@@ -20,7 +20,7 @@ import {
 import { agendaFor, positionOverlappingBlocks, type BlockStatus, type TimeBlock } from "@/lib/lifeos-blocks";
 import type { ExternalCalendarEvent } from "@/lib/calendar-feeds";
 import { DOMAIN_LABELS } from "@/lib/lifeos-domains";
-import { routineOccurrences, type RoutineOccurrence, type ScheduledRoutine } from "@/lib/lifeos-routines";
+import { routineOccurrenceDate, routineOccurrenceKey, routineOccurrences, type RoutineOccurrence, type RoutineOccurrenceRecord, type RoutineOccurrenceStatus, type ScheduledRoutine } from "@/lib/lifeos-routines";
 
 export type CalendarGoal = {
   id: string;
@@ -36,11 +36,13 @@ type Props = {
   blocks: TimeBlock[];
   externalEvents: ExternalCalendarEvent[];
   routines: ScheduledRoutine[];
+  routineRecords: RoutineOccurrenceRecord[];
   initialLevel?: CalendarLevel;
   onEditGoal: (goal: CalendarGoal) => void;
   onCreateBlock: (startLocal: string, endLocal: string) => void;
   onEditBlock: (block: TimeBlock) => void;
   onStatusBlock: (block: TimeBlock, status: BlockStatus) => void;
+  onStatusRoutine: (routineId: string, date: string, status: RoutineOccurrenceStatus) => void;
 };
 
 function externalOverlapping(events: ExternalCalendarEvent[], tile: CalendarTile) {
@@ -78,7 +80,7 @@ function monthDays(tile: CalendarTile) {
   return days;
 }
 
-export default function SemanticCalendar({ goals, blocks, externalEvents, routines, initialLevel = "DAY", onEditGoal, onCreateBlock, onEditBlock, onStatusBlock }: Props) {
+export default function SemanticCalendar({ goals, blocks, externalEvents, routines, routineRecords, initialLevel = "DAY", onEditGoal, onCreateBlock, onEditBlock, onStatusBlock, onStatusRoutine }: Props) {
   const [level, setLevel] = useState<CalendarLevel>(initialLevel);
   const [cursor, setCursor] = useState(() => nowInChicago());
   const [clock, setClock] = useState(() => new Date());
@@ -113,13 +115,15 @@ export default function SemanticCalendar({ goals, blocks, externalEvents, routin
     ? externalEvents.filter((event) => new Date(event.startAt) < periodUtc.end && new Date(event.endAt) > periodUtc.start)
     : [];
   const dayRoutines = level === "DAY" ? visibleRoutines : [];
+  const routineStatusByKey = new Map(routineRecords.map((record) => [routineOccurrenceKey(record.routineId, record.date.slice(0, 10)), record.status]));
+  const routineStatus = (routine: RoutineOccurrence) => routineStatusByKey.get(routineOccurrenceKey(routine.routineId, routineOccurrenceDate(routine))) ?? "PLANNED";
   const { happeningNow, upNext, remaining } = agendaFor(dayBlocks, clock, isToday);
   const externalByBlockId = new Map(dayExternal.map((event) => [`external:${event.id}`, event]));
   const routineByBlockId = new Map(dayRoutines.map((routine) => [routine.id, routine]));
   const positionedItems = positionOverlappingBlocks([
     ...dayBlocks,
     ...dayExternal.map((event) => ({ id: `external:${event.id}`, title: event.title, note: event.description, category: event.calendarName, status: "PLANNED" as const, startAt: event.startAt, endAt: event.endAt, objectiveId: null })),
-    ...dayRoutines.map((routine) => ({ id: routine.id, title: routine.title, note: routine.notes, category: `${DOMAIN_LABELS[routine.domainKey as keyof typeof DOMAIN_LABELS] ?? routine.domainKey} routine`, status: "PLANNED" as const, startAt: routine.startAt, endAt: routine.endAt, objectiveId: null })),
+    ...dayRoutines.map((routine) => ({ id: routine.id, title: routine.title, note: routine.notes, category: `${DOMAIN_LABELS[routine.domainKey as keyof typeof DOMAIN_LABELS] ?? routine.domainKey} routine`, status: routineStatus(routine), startAt: routine.startAt, endAt: routine.endAt, objectiveId: null })),
   ]);
 
   useEffect(() => {
@@ -232,11 +236,21 @@ export default function SemanticCalendar({ goals, blocks, externalEvents, routin
             {dayRoutines.length > 0 && <section className="mt-4" aria-labelledby="scheduled-routines-heading">
               <h5 id="scheduled-routines-heading" className="text-sm font-semibold text-slate-300">Routines</h5>
               <div className="mt-2 space-y-2">
-                {dayRoutines.map((routine) => <button key={routine.id} type="button" onClick={() => setSelectedRoutine(routine)} className="block min-h-11 w-full rounded-lg border border-cyan-700 bg-cyan-950/30 p-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300">
-                  <span className="flex items-start justify-between gap-3"><span className="font-semibold">{routine.title}</span><span className="shrink-0 text-xs text-cyan-300">{DOMAIN_LABELS[routine.domainKey as keyof typeof DOMAIN_LABELS] ?? routine.domainKey}</span></span>
-                  <span className="mt-1 block text-sm text-slate-300">{timeLabel(routine.startAt)}–{timeLabel(routine.endAt)} · recurring</span>
-                  {routine.objectiveTitle && <span className="mt-1 block text-xs leading-5 text-violet-200">Why: {routine.objectiveTitle}</span>}
-                </button>)}
+                {dayRoutines.map((routine) => {
+                  const occurrenceStatus = routineStatus(routine);
+                  const complete = occurrenceStatus === "COMPLETED";
+                  const skipped = occurrenceStatus === "SKIPPED";
+                  const occurrenceDate = routineOccurrenceDate(routine);
+                  return <article key={routine.id} className={`flex items-start gap-2 rounded-lg border p-2 ${complete ? "border-emerald-800 bg-emerald-950/20" : skipped ? "border-amber-800 bg-amber-950/20" : "border-cyan-700 bg-cyan-950/30"}`}>
+                    <button type="button" onClick={() => onStatusRoutine(routine.routineId, occurrenceDate, complete ? "PLANNED" : "COMPLETED")} aria-label={`${complete ? "Reopen" : "Mark complete"}: ${routine.title}`} aria-pressed={complete} className={`mt-1 flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-lg border text-lg font-bold focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300 ${complete ? "border-emerald-400 bg-emerald-400 text-slate-950" : "border-slate-600 bg-slate-900 text-slate-400"}`}>{complete ? "✓" : ""}</button>
+                    <button type="button" onClick={() => setSelectedRoutine(routine)} className="min-h-11 min-w-0 flex-1 rounded-md p-1 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-300">
+                      <span className="flex items-start justify-between gap-3"><span className={`font-semibold ${complete || skipped ? "text-slate-400 line-through" : ""}`}>{routine.title}</span><span className="shrink-0 text-xs text-cyan-300">{DOMAIN_LABELS[routine.domainKey as keyof typeof DOMAIN_LABELS] ?? routine.domainKey}</span></span>
+                      <span className="mt-1 block text-sm text-slate-300">{timeLabel(routine.startAt)}–{timeLabel(routine.endAt)} · {complete ? "completed" : skipped ? "skipped" : "recurring"}</span>
+                      {routine.objectiveTitle && <span className="mt-1 block text-xs leading-5 text-violet-200">Why: {routine.objectiveTitle}</span>}
+                    </button>
+                    {!complete && <button type="button" onClick={() => onStatusRoutine(routine.routineId, occurrenceDate, skipped ? "PLANNED" : "SKIPPED")} className="min-h-11 shrink-0 rounded-lg border border-slate-700 px-2 text-xs font-semibold hover:bg-slate-800">{skipped ? "Reopen" : "Skip"}</button>}
+                  </article>;
+                })}
               </div>
             </section>}
 
@@ -261,22 +275,34 @@ export default function SemanticCalendar({ goals, blocks, externalEvents, routin
                 <section aria-labelledby="now-heading">
                   <h5 id="now-heading" className="text-sm font-semibold text-slate-300">Happening now</h5>
                   {happeningNow.length ? happeningNow.map((block) => (
-                    <button key={block.id} type="button" onClick={() => onEditBlock(block)} className="mt-2 block min-h-11 w-full rounded-lg border border-violet-500 bg-violet-950/50 p-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300">
-                      <span className="block font-semibold">{block.title}</span>
-                      <span className="mt-1 block text-sm text-violet-200">{timeLabel(block.startAt)}–{timeLabel(block.endAt)} · {statusLabel(block.status)}</span>
-                      {projectContext(block) && <span className="mt-1 block text-xs text-violet-300">{projectContext(block)}</span>}
-                    </button>
+                    <article key={block.id} className="mt-2 rounded-lg border border-violet-500 bg-violet-950/50 p-2">
+                      <button type="button" onClick={() => onEditBlock(block)} className="block min-h-11 w-full rounded-md p-1 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300">
+                        <span className="block font-semibold">{block.title}</span>
+                        <span className="mt-1 block text-sm text-violet-200">{timeLabel(block.startAt)}–{timeLabel(block.endAt)} · {statusLabel(block.status)}</span>
+                        {projectContext(block) && <span className="mt-1 block text-xs text-violet-300">{projectContext(block)}</span>}
+                      </button>
+                      <div className="flex gap-2 pt-1">
+                        <button type="button" onClick={() => onStatusBlock(block, "COMPLETED")} className="min-h-11 flex-1 rounded-md border border-emerald-800 px-2 text-xs font-semibold text-emerald-200 hover:bg-emerald-950/40">Complete</button>
+                        <button type="button" onClick={() => onStatusBlock(block, "SKIPPED")} className="min-h-11 flex-1 rounded-md border border-amber-800 px-2 text-xs font-semibold text-amber-200 hover:bg-amber-950/40">Skip</button>
+                      </div>
+                    </article>
                   )) : <p className="mt-2 text-sm text-slate-500">No active block right now.</p>}
                 </section>
 
                 <section aria-labelledby="next-heading">
                   <h5 id="next-heading" className="text-sm font-semibold text-slate-300">Up next</h5>
                   {upNext ? (
-                    <button type="button" onClick={() => onEditBlock(upNext)} className="mt-2 block min-h-11 w-full rounded-lg border border-slate-600 p-3 text-left hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300">
-                      <span className="block font-semibold">{upNext.title}</span>
-                      <span className="mt-1 block text-sm text-slate-400">Starts {timeLabel(upNext.startAt)}</span>
-                      {projectContext(upNext) && <span className="mt-1 block text-xs text-violet-300">{projectContext(upNext)}</span>}
-                    </button>
+                    <article className="mt-2 rounded-lg border border-slate-600 p-2">
+                      <button type="button" onClick={() => onEditBlock(upNext)} className="block min-h-11 w-full rounded-md p-1 text-left hover:bg-slate-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-300">
+                        <span className="block font-semibold">{upNext.title}</span>
+                        <span className="mt-1 block text-sm text-slate-400">Starts {timeLabel(upNext.startAt)}</span>
+                        {projectContext(upNext) && <span className="mt-1 block text-xs text-violet-300">{projectContext(upNext)}</span>}
+                      </button>
+                      <div className="flex gap-2 pt-1">
+                        <button type="button" onClick={() => onStatusBlock(upNext, "COMPLETED")} className="min-h-11 flex-1 rounded-md border border-emerald-800 px-2 text-xs font-semibold text-emerald-200 hover:bg-emerald-950/40">Complete</button>
+                        <button type="button" onClick={() => onStatusBlock(upNext, "SKIPPED")} className="min-h-11 flex-1 rounded-md border border-amber-800 px-2 text-xs font-semibold text-amber-200 hover:bg-amber-950/40">Skip</button>
+                      </div>
+                    </article>
                   ) : <p className="mt-2 text-sm text-slate-500">No later blocks today.</p>}
                 </section>
 
@@ -289,10 +315,10 @@ export default function SemanticCalendar({ goals, blocks, externalEvents, routin
                           <span className={`min-w-0 truncate ${["COMPLETED", "SKIPPED"].includes(block.status) ? "text-slate-500 line-through" : ""}`}>{block.title}</span>
                           <span className="shrink-0 text-sm text-slate-400">{timeLabel(block.startAt)}</span>
                         </button>
-                        {!['COMPLETED', 'SKIPPED'].includes(block.status) && <div className="flex gap-2 pt-1">
+                        {!['COMPLETED', 'SKIPPED'].includes(block.status) ? <div className="flex gap-2 pt-1">
                           <button type="button" onClick={() => onStatusBlock(block, "COMPLETED")} className="min-h-11 flex-1 rounded-md border border-slate-700 px-2 text-xs font-semibold hover:bg-slate-800">Complete</button>
                           <button type="button" onClick={() => onStatusBlock(block, "SKIPPED")} className="min-h-11 flex-1 rounded-md border border-slate-700 px-2 text-xs font-semibold hover:bg-slate-800">Skip</button>
-                        </div>}
+                        </div> : <button type="button" onClick={() => onStatusBlock(block, "PLANNED")} className="mt-1 min-h-11 w-full rounded-md border border-slate-700 px-2 text-xs font-semibold hover:bg-slate-800">Reopen</button>}
                       </article>
                     )) : <p className="text-sm text-slate-500">The scheduled day is complete.</p>}
                   </div>
@@ -338,9 +364,9 @@ export default function SemanticCalendar({ goals, blocks, externalEvents, routin
                   const routine = routineByBlockId.get(block.id);
                   const inactive = ["COMPLETED", "SKIPPED"].includes(block.status);
                   if (routine) return (
-                    <button key={block.id} type="button" onClick={(event) => { event.stopPropagation(); setSelectedRoutine(routine); }} className="absolute z-10 min-h-11 overflow-hidden rounded-lg border border-cyan-400 bg-cyan-800/90 px-2 py-1 text-left text-white shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-200" style={{ top: `${startMinute * 0.8}px`, height: `${Math.max(routine.objectiveTitle ? 52 : 44, (endMinute - startMinute) * 0.8)}px`, width, left }} aria-label={`View recurring routine ${routine.title}, ${timeLabel(routine.startAt)} to ${timeLabel(routine.endAt)}${routine.objectiveTitle ? `, supports ${routine.objectiveTitle}` : ""}`}>
-                      <span className="block truncate text-xs font-semibold leading-4">{routine.title}</span>
-                      <span className="block truncate text-[10px] leading-3 opacity-90">Routine · {timeLabel(routine.startAt)}–{timeLabel(routine.endAt)}</span>
+                    <button key={block.id} type="button" onClick={(event) => { event.stopPropagation(); setSelectedRoutine(routine); }} className={`absolute z-10 min-h-11 overflow-hidden rounded-lg border px-2 py-1 text-left text-white shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-200 ${inactive ? "border-slate-500 bg-slate-700/90" : "border-cyan-400 bg-cyan-800/90"}`} style={{ top: `${startMinute * 0.8}px`, height: `${Math.max(routine.objectiveTitle ? 52 : 44, (endMinute - startMinute) * 0.8)}px`, width, left }} aria-label={`View recurring routine ${routine.title}, ${timeLabel(routine.startAt)} to ${timeLabel(routine.endAt)}, ${statusLabel(block.status)}${routine.objectiveTitle ? `, supports ${routine.objectiveTitle}` : ""}`}>
+                      <span className={`block truncate text-xs font-semibold leading-4 ${inactive ? "line-through" : ""}`}>{routine.title}</span>
+                      <span className="block truncate text-[10px] leading-3 opacity-90">Routine · {timeLabel(routine.startAt)}–{timeLabel(routine.endAt)} · {statusLabel(block.status)}</span>
                       {routine.objectiveTitle && <span className="block truncate text-[10px] leading-3 text-violet-100">Why: {routine.objectiveTitle}</span>}
                     </button>
                   );
@@ -442,6 +468,11 @@ export default function SemanticCalendar({ goals, blocks, externalEvents, routin
           <p className="mt-4 text-base text-slate-100">{new Intl.DateTimeFormat("en-US", { timeZone: LIFEOS_TIME_ZONE, dateStyle: "full", timeStyle: "short" }).format(new Date(selectedRoutine.startAt))} – {timeLabel(selectedRoutine.endAt)}</p>
           {selectedRoutine.objectiveTitle && <div className="mt-4 rounded-xl border border-violet-800 bg-violet-950/30 p-3"><p className="text-xs font-semibold uppercase tracking-wide text-violet-300">Why this matters</p><p className="mt-1 text-sm text-violet-100">{selectedRoutine.objectiveTitle}</p></div>}
           {selectedRoutine.notes && <p className="mt-4 whitespace-pre-wrap leading-6 text-slate-300">{selectedRoutine.notes}</p>}
+          <div className="mt-5 flex flex-wrap gap-2">
+            {routineStatus(selectedRoutine) !== "COMPLETED" && <button type="button" onClick={() => onStatusRoutine(selectedRoutine.routineId, routineOccurrenceDate(selectedRoutine), "COMPLETED")} className="min-h-11 rounded-lg bg-emerald-400 px-4 py-2 font-semibold text-slate-950 hover:bg-emerald-300">Mark complete</button>}
+            {routineStatus(selectedRoutine) !== "SKIPPED" && <button type="button" onClick={() => onStatusRoutine(selectedRoutine.routineId, routineOccurrenceDate(selectedRoutine), "SKIPPED")} className="min-h-11 rounded-lg border border-amber-700 px-4 py-2 font-semibold text-amber-200 hover:bg-amber-950/40">Skip</button>}
+            {routineStatus(selectedRoutine) !== "PLANNED" && <button type="button" onClick={() => onStatusRoutine(selectedRoutine.routineId, routineOccurrenceDate(selectedRoutine), "PLANNED")} className="min-h-11 rounded-lg border border-slate-600 px-4 py-2 font-semibold hover:bg-slate-800">Reopen</button>}
+          </div>
           <p className="mt-5 text-xs leading-5 text-slate-500">This occurrence comes from an active {selectedRoutine.cadence.toLowerCase()} routine. Edit or pause the routine in Pillars to change future Calendar appearances.</p>
         </section>
       </div>}

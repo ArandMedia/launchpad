@@ -1,5 +1,15 @@
 import { addLocal, chicagoLocalToUtc, floorLocal, parseLocalInput, utcToChicagoInput } from "@/lib/lifeos-time";
 
+export const ROUTINE_OCCURRENCE_STATUSES = ["PLANNED", "COMPLETED", "SKIPPED"] as const;
+export type RoutineOccurrenceStatus = (typeof ROUTINE_OCCURRENCE_STATUSES)[number];
+
+export type RoutineOccurrenceRecord = {
+  id: string;
+  routineId: string;
+  date: string;
+  status: RoutineOccurrenceStatus;
+};
+
 export type ScheduledRoutine = {
   id: string;
   title: string;
@@ -27,6 +37,14 @@ export type RoutineOccurrence = {
   startAt: string;
   endAt: string;
 };
+
+export function routineOccurrenceDate(occurrence: Pick<RoutineOccurrence, "startAt">) {
+  return utcToChicagoInput(occurrence.startAt).slice(0, 10);
+}
+
+export function routineOccurrenceKey(routineId: string, date: string) {
+  return `${routineId}:${date}`;
+}
 
 const MAX_OCCURRENCES = 2000;
 

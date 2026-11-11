@@ -50,11 +50,41 @@ type StoredBlock = {
   updatedAt: Date;
 };
 
+type StoredRoutine = {
+  id: string;
+  ownerId: string;
+  domainKey: string;
+  title: string;
+  cadence: string;
+  active: boolean;
+  notes: string;
+  scheduleTime: string;
+  scheduleDurationMinutes: number;
+  scheduleWeekdays: number[];
+  scheduleDayOfMonth: number | null;
+  scheduleStartsOn: Date | null;
+  objectiveId: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
+type StoredRoutineRecord = {
+  id: string;
+  ownerId: string;
+  routineId: string;
+  date: Date;
+  status: string;
+  createdAt: Date;
+  updatedAt: Date;
+};
+
 const state = vi.hoisted(() => ({
   ownerId: null as string | null,
   goals: [] as StoredGoal[],
   reviews: [] as StoredReview[],
   blocks: [] as StoredBlock[],
+  routines: [] as StoredRoutine[],
+  routineRecords: [] as StoredRoutineRecord[],
   projects: [] as { id: string; archivedAt: Date | null; status: string }[],
   tasks: [] as { id: string; projectId: string; status: string }[],
   milestones: [] as { id: string; projectId: string; completedAt: Date | null }[],
@@ -68,7 +98,35 @@ vi.mock("@/lib/lifeos-auth", () => ({
 vi.mock("@/lib/db", () => ({
   db: {
     lifeOSRoutine: {
-      findMany: vi.fn(async () => [] as Array<{ objective: { title: string } | null }>),
+      findMany: vi.fn(async ({ where }: { where: { ownerId: string } }) =>
+        state.routines.filter((routine) => routine.ownerId === where.ownerId).map((routine) => ({ ...routine, objective: null }))
+      ),
+      findFirst: vi.fn(async ({ where }: { where: { id: string; ownerId: string } }) =>
+        state.routines.find((routine) => routine.id === where.id && routine.ownerId === where.ownerId) ?? null
+      ),
+    },
+    lifeOSRoutineOccurrence: {
+      findMany: vi.fn(async ({ where }: { where: { ownerId: string } }) =>
+        state.routineRecords.filter((record) => record.ownerId === where.ownerId)
+      ),
+      upsert: vi.fn(async ({ where, create, update }: {
+        where: { ownerId_routineId_date: { ownerId: string; routineId: string; date: Date } };
+        create: Omit<StoredRoutineRecord, "id" | "createdAt" | "updatedAt">;
+        update: Pick<StoredRoutineRecord, "status">;
+      }) => {
+        const key = where.ownerId_routineId_date;
+        const record = state.routineRecords.find((candidate) =>
+          candidate.ownerId === key.ownerId && candidate.routineId === key.routineId && candidate.date.valueOf() === key.date.valueOf()
+        );
+        if (record) {
+          Object.assign(record, update, { updatedAt: new Date() });
+          return record;
+        }
+        const now = new Date();
+        const created: StoredRoutineRecord = { ...create, id: `routine-record-${state.nextId++}`, createdAt: now, updatedAt: now };
+        state.routineRecords.push(created);
+        return created;
+      }),
     },
     lifeOSGoal: {
       findMany: vi.fn(async ({ where }: { where: { ownerId: string } }) =>
@@ -187,6 +245,8 @@ describe("LifeOS API", () => {
     state.goals.length = 0;
     state.reviews.length = 0;
     state.blocks.length = 0;
+    state.routines.length = 0;
+    state.routineRecords.length = 0;
     state.projects.length = 0;
     state.tasks.length = 0;
     state.milestones.length = 0;
@@ -278,6 +338,38 @@ describe("LifeOS API", () => {
     const data = await reload.json();
     expect(data.reviews).toHaveLength(1);
     expect(data.reviews[0].learned).toBe("Owner checks must be exact");
+  });
+
+  it("tracks each owner routine occurrence independently and allows corrections", async () => {
+    state.ownerId = "owner-user";
+    const now = new Date();
+    state.routines.push(
+      {
+        id: "routine-owner", ownerId: "owner-user", domainKey: "HEALTH", title: "Upper body", cadence: "WEEKLY",
+        active: true, notes: "", scheduleTime: "08:00", scheduleDurationMinutes: 60, scheduleWeekdays: [1],
+        scheduleDayOfMonth: null, scheduleStartsOn: new Date("2026-11-01T12:00:00.000Z"), objectiveId: null, createdAt: now, updatedAt: now,
+      },
+      {
+        id: "routine-foreign", ownerId: "other-user", domainKey: "HEALTH", title: "Private", cadence: "DAILY",
+        active: true, notes: "", scheduleTime: "09:00", scheduleDurationMinutes: 30, scheduleWeekdays: [],
+        scheduleDayOfMonth: null, scheduleStartsOn: null, objectiveId: null, createdAt: now, updatedAt: now,
+      },
+    );
+
+    expect((await PATCH(request("PATCH", { action: "routine-status", id: "routine-owner", date: "2026-11-10", status: "COMPLETED" }))).status).toBe(200);
+    expect(state.routineRecords).toHaveLength(1);
+    expect(state.routineRecords[0]).toMatchObject({ routineId: "routine-owner", status: "COMPLETED" });
+
+    expect((await PATCH(request("PATCH", { action: "routine-status", id: "routine-owner", date: "2026-11-10", status: "PLANNED" }))).status).toBe(200);
+    expect(state.routineRecords).toHaveLength(1);
+    expect(state.routineRecords[0].status).toBe("PLANNED");
+    expect((await PATCH(request("PATCH", { action: "routine-status", id: "routine-foreign", date: "2026-11-10", status: "COMPLETED" }))).status).toBe(404);
+    expect((await PATCH(request("PATCH", { action: "routine-status", id: "routine-owner", date: "2026-02-30", status: "COMPLETED" }))).status).toBe(400);
+    expect((await PATCH(request("PATCH", { action: "routine-status", id: "routine-owner", date: "2026-11-10", status: "MISSED" }))).status).toBe(400);
+
+    const data = await (await GET()).json();
+    expect(data.routineRecords).toHaveLength(1);
+    expect(data.routineRecords[0]).toMatchObject({ routineId: "routine-owner", status: "PLANNED" });
   });
 
   it("creates, edits, and clears a precise optional schedule", async () => {
