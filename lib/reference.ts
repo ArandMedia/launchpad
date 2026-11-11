@@ -8,12 +8,20 @@ export const REFERENCE_PAGES: Record<string, { title: string }> = {
 export const MAX_REFERENCE_BYTES = 3 * 1024 * 1024;
 
 export function rewriteLaunchPADProjectsLink(html: string) {
-  return html.replace(
-    /<a\b[^>]*\bhref\s*=\s*(["'])[^"']*\1[^>]*>[\s\S]*?<\/a>/gi,
-    (anchor: string) => {
-      const visibleText = anchor.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
-      if (!/LaunchPAD projects/i.test(visibleText)) return anchor;
-      return anchor.replace(/\bhref\s*=\s*(["'])[^"']*\1/i, 'href="/?view=projects"');
-    },
-  );
+  return html.replace(/<a\b[^>]*>[\s\S]*?<\/a>/gi, (anchor: string) => {
+    const visibleText = anchor.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+    if (!/LaunchPAD projects/i.test(visibleText)) return anchor;
+
+    const quotedHref = /\bhref\s*=\s*(["'])[^"']*\1/i;
+    if (quotedHref.test(anchor)) {
+      return anchor.replace(quotedHref, 'href="/?view=projects"');
+    }
+
+    const unquotedHref = /\bhref\s*=\s*[^\s>]+/i;
+    if (unquotedHref.test(anchor)) {
+      return anchor.replace(unquotedHref, 'href="/?view=projects"');
+    }
+
+    return anchor.replace(/^<a\b/i, '<a href="/?view=projects"');
+  });
 }

@@ -23,4 +23,14 @@ describe("reference navigation", () => {
     const html = '<a href="https://launchpad.arandmedia.com/"><span>LaunchPAD projects</span></a>';
     expect(rewriteLaunchPADProjectsLink(html)).toContain('href="/?view=projects"');
   });
+
+  it("rewrites an unquoted stored href", () => {
+    const html = '<a class=back href=/><span>Back to LaunchPAD projects</span></a>';
+    expect(rewriteLaunchPADProjectsLink(html)).toContain('href="/?view=projects"');
+  });
+
+  it("adds a target when the stored project link has no href", () => {
+    const html = '<a class="back"><span>Back to LaunchPAD projects</span></a>';
+    expect(rewriteLaunchPADProjectsLink(html)).toContain('href="/?view=projects"');
+  });
 });
