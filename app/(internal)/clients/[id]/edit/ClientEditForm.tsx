@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { clientApi, clientErrorMessage } from "@/lib/client-api";
 
 type Client = {
   id: string;
@@ -23,24 +24,28 @@ export default function ClientEditForm({ client }: { client: Client }) {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    setBusy(true);
-    const res = await fetch(`/api/clients/${client.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, companyName, email, phone }),
-    });
-    setBusy(false);
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setError(data.error || "Something went wrong.");
+    if (!name.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError("Enter a contact name and valid email address.");
       return;
     }
-    router.push("/clients");
-    router.refresh();
+    setBusy(true);
+    try {
+      await clientApi(`/api/clients/${client.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, companyName, email, phone }),
+      });
+      router.push("/clients");
+      router.refresh();
+    } catch (caught) {
+      setError(clientErrorMessage(caught));
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="grid gap-4">
+    <form onSubmit={handleSubmit} noValidate className="grid gap-4">
       <input
         className="lp-input"
         placeholder="Contact name"

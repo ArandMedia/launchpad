@@ -24,6 +24,7 @@ type Project = {
   problem: string | null;
   solution: string | null;
   desiredOutcome: string | null;
+  archivedAt: Date | null;
   milestones: Milestone[];
   updates: Update[];
   documents: Document[];
@@ -61,11 +62,12 @@ export default function PortalProjectList({ projects }: { projects: Project[] })
 
         return (
           <div key={project.id} className="bg-white border border-slate-200 rounded-xl p-6">
-            <div className="flex items-center justify-between mb-1">
+            <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-medium text-slate-900">{project.name}</h2>
-              <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-blue-50 text-blue-700">
-                {project.status.replace("_", " ")}
-              </span>
+              <div className="flex flex-wrap items-center gap-2">
+                {project.archivedAt && <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">Archived</span>}
+                <span className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700">{project.status.replace("_", " ")}</span>
+              </div>
             </div>
 
             {project.milestones.length > 0 && (
