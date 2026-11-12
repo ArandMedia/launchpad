@@ -1,9 +1,10 @@
-const textField = (form: FormData, name: string) => {
-  const value = form.get(name);
-  return typeof value === "string" ? value.replaceAll("\u0000", "") : "";
+const textField = (form: HTMLFormElement, name: string) => {
+  const control = form.elements.namedItem(name);
+  if (!control || !("value" in control) || typeof control.value !== "string") return "";
+  return control.value.replace(/\u0000/g, "");
 };
 
-export function readProjectForm(form: FormData) {
+export function readProjectForm(form: HTMLFormElement) {
   return {
     name: textField(form, "name").trim(),
     description: textField(form, "description"),
