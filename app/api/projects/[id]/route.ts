@@ -14,6 +14,11 @@ function calendarDate(value: unknown) {
   return date.toISOString().slice(0, 10) === value ? date : undefined;
 }
 
+function formText(form: FormData, name: string) {
+  const value = form.get(name);
+  return typeof value === "string" ? value.replace(/\u0000/g, "") : "";
+}
+
 export async function GET(_req: NextRequest, props: { params: Promise<{ id: string }> }) {
   const params = await props.params;
   const project = await db.project.findUnique({
@@ -90,6 +95,46 @@ export async function PATCH(req: NextRequest, props: { params: Promise<{ id: str
   }
 
   return NextResponse.json({ project });
+}
+
+// Native form fallback for the iPad project editor. Keeping the textareas
+// uncontrolled and letting the browser submit them avoids a WebKit/React
+// paste lockup while preserving the JSON PATCH route for other actions.
+export async function POST(req: NextRequest, props: { params: Promise<{ id: string }> }) {
+  const params = await props.params;
+  const auth = await requireTeamSession();
+  if ("error" in auth) return auth.error;
+
+  const form = await req.formData().catch(() => null);
+  if (!form) return invalid("Enter valid project details");
+
+  const name = formText(form, "name").trim();
+  const status = formText(form, "status");
+  const startValue = formText(form, "startDate");
+  const targetValue = formText(form, "targetDate");
+  const startDate = calendarDate(startValue || null);
+  const targetDate = calendarDate(targetValue || null);
+
+  if (!name || name.length > 200) return invalid("Enter a project name of 200 characters or less");
+  if (!projectStatuses.includes(status as (typeof projectStatuses)[number])) return invalid("Choose a valid project status");
+  if (startDate === undefined) return invalid("Choose a valid start date");
+  if (targetDate === undefined) return invalid("Choose a valid target date");
+
+  await db.project.update({
+    where: { id: params.id },
+    data: {
+      name,
+      description: formText(form, "description") || null,
+      problem: formText(form, "problem") || null,
+      solution: formText(form, "solution") || null,
+      desiredOutcome: formText(form, "desiredOutcome") || null,
+      status: status as (typeof projectStatuses)[number],
+      startDate,
+      targetDate,
+    },
+  });
+
+  return NextResponse.redirect(new URL(`/projects/${params.id}`, req.url), 303);
 }
 
 // Permanently deletes a project and everything scoped to it (tasks,
