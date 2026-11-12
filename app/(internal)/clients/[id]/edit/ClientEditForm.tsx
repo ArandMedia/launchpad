@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { clientApi, clientErrorMessage } from "@/lib/client-api";
 
 type Client = {
@@ -13,7 +12,6 @@ type Client = {
 };
 
 export default function ClientEditForm({ client }: { client: Client }) {
-  const router = useRouter();
   const [name, setName] = useState(client.name);
   const [companyName, setCompanyName] = useState(client.companyName || "");
   const [email, setEmail] = useState(client.email);
@@ -35,8 +33,7 @@ export default function ClientEditForm({ client }: { client: Client }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, companyName, email, phone }),
       });
-      router.push("/clients");
-      router.refresh();
+      window.location.assign("/clients");
     } catch (caught) {
       setError(clientErrorMessage(caught));
     } finally {

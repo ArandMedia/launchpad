@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/app/components/StableLink";
 import { usePathname } from "next/navigation";
 
 const links = [

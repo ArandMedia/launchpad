@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { clientApi, clientErrorMessage } from "@/lib/client-api";
 
 export default function ClientRowActions({
@@ -15,7 +14,6 @@ export default function ClientRowActions({
   archived: boolean;
   projectCount: number;
 }) {
-  const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -31,7 +29,7 @@ export default function ClientRowActions({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ archived: !archived }),
       });
-      router.refresh();
+      window.location.reload();
     } catch (caught) {
       setError(clientErrorMessage(caught));
     } finally {
@@ -49,7 +47,7 @@ export default function ClientRowActions({
     setBusy(true);
     try {
       await clientApi(`/api/clients/${clientId}`, { method: "DELETE" });
-      router.refresh();
+      window.location.reload();
     } catch (caught) {
       setError(clientErrorMessage(caught));
     } finally {

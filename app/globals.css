@@ -70,8 +70,6 @@
   position: sticky;
   top: max(0px, env(safe-area-inset-top));
   z-index: 30;
-  -webkit-backdrop-filter: blur(14px);
-  backdrop-filter: blur(14px);
 }
 
 .lifeos-shell-grid { display: grid; grid-template-areas: "nav" "main"; gap: 1rem; grid-template-columns: minmax(0, 1fr); }

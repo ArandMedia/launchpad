@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
-import Link from "next/link";
+import Link from "@/app/components/StableLink";
 import ClientEditForm from "./ClientEditForm";
 
 export const dynamic = "force-dynamic";

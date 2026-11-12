@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { clientApi, clientErrorMessage } from "@/lib/client-api";
 
 type Task = { id: string; title: string; status: string; dueDate: Date | null };
@@ -50,7 +49,6 @@ export default function ProjectPanels({
   updates: Update[];
   documents: Document[];
 }) {
-  const router = useRouter();
   const [actionError, setActionError] = useState<string | null>(null);
 
   const [docTitle, setDocTitle] = useState("");
@@ -92,7 +90,7 @@ export default function ProjectPanels({
     });
     if (saved) {
       setTaskTitle("");
-      router.refresh();
+      window.location.reload();
     }
     setTaskBusy(false);
   }
@@ -103,13 +101,13 @@ export default function ProjectPanels({
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: next }),
-    })) router.refresh();
+    })) window.location.reload();
   }
 
   async function deleteTask(task: Task, e: React.MouseEvent) {
     e.stopPropagation();
     if (!confirm(`Delete task "${task.title}"?`)) return;
-    if (await request(`/api/tasks/${task.id}`, { method: "DELETE" })) router.refresh();
+    if (await request(`/api/tasks/${task.id}`, { method: "DELETE" })) window.location.reload();
   }
 
   async function addMilestone(e: React.FormEvent) {
@@ -124,7 +122,7 @@ export default function ProjectPanels({
     if (saved) {
       setMilestoneTitle("");
       setMilestoneDate("");
-      router.refresh();
+      window.location.reload();
     }
     setMilestoneBusy(false);
   }
@@ -134,13 +132,13 @@ export default function ProjectPanels({
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ completed: !milestone.completedAt }),
-    })) router.refresh();
+    })) window.location.reload();
   }
 
   async function deleteMilestone(milestone: Milestone, e: React.MouseEvent) {
     e.stopPropagation();
     if (!confirm(`Delete milestone "${milestone.title}"?`)) return;
-    if (await request(`/api/milestones/${milestone.id}`, { method: "DELETE" })) router.refresh();
+    if (await request(`/api/milestones/${milestone.id}`, { method: "DELETE" })) window.location.reload();
   }
 
   async function postUpdate(e: React.FormEvent) {
@@ -157,14 +155,14 @@ export default function ProjectPanels({
     if (saved) {
       setUpdateBody("");
       setUpdateVisible(false);
-      router.refresh();
+      window.location.reload();
     }
     setUpdateBusy(false);
   }
 
   async function deleteUpdate(update: Update) {
     if (!confirm("Delete this update? This does not unsend any notification email already sent.")) return;
-    if (await request(`/api/updates/${update.id}`, { method: "DELETE" })) router.refresh();
+    if (await request(`/api/updates/${update.id}`, { method: "DELETE" })) window.location.reload();
   }
 
   async function uploadDocument(e: React.FormEvent) {
@@ -197,7 +195,7 @@ export default function ProjectPanels({
     setDocCategory("OTHER");
     setDocFile(null);
     setDocVisible(false);
-    router.refresh();
+    window.location.reload();
   }
 
   async function toggleDocVisibility(doc: Document) {
@@ -205,12 +203,12 @@ export default function ProjectPanels({
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ clientVisible: !doc.clientVisible }),
-    })) router.refresh();
+    })) window.location.reload();
   }
 
   async function deleteDocument(doc: Document) {
     if (!confirm(`Delete "${doc.title}"? This can't be undone.`)) return;
-    if (await request(`/api/documents/${doc.id}`, { method: "DELETE" })) router.refresh();
+    if (await request(`/api/documents/${doc.id}`, { method: "DELETE" })) window.location.reload();
   }
 
   return (

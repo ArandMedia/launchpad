@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import Link from "@/app/components/StableLink";
 
 export default function NewClientPage() {
   const [name, setName] = useState("");

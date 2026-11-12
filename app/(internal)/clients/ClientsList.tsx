@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
+import Link from "@/app/components/StableLink";
 import ClientRowActions from "./ClientRowActions";
 
 type Client = {

@@ -1,6 +1,6 @@
 import { db } from "@/lib/db";
 import { notFound } from "next/navigation";
-import Link from "next/link";
+import Link from "@/app/components/StableLink";
 import ProjectPanels from "./ProjectPanels";
 import ProjectHeader from "./ProjectHeader";
 import { getTeamSession } from "@/lib/current-session";
