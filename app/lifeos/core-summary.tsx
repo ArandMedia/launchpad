@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/app/components/StableLink";
 import { useEffect, useState, type FormEvent } from "react";
 import { DOMAIN_LABELS, INTEGRATION_ADAPTERS, type LifeOSDomainKey } from "@/lib/lifeos-domains";
 

@@ -4,7 +4,7 @@ import LogoutButton from "./LogoutButton";
 const navLink = "inline-flex min-h-11 items-center rounded-lg px-2.5 text-sm font-semibold text-slate-600 transition hover:bg-violet-50 hover:text-violet-900 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600";
 
 export default function LaunchpadHeader({ showCalendar }: { showCalendar: boolean }) {
-  return <header className="launchpad-header sticky top-0 z-40 border-b border-slate-200/90 bg-white/95 shadow-sm backdrop-blur">
+  return <header className="launchpad-header sticky top-0 z-40 border-b border-slate-200 bg-white shadow-sm">
     <div className="mx-auto flex min-h-16 max-w-[1440px] flex-wrap items-center justify-between gap-2 px-4 py-2 sm:px-6 xl:px-8">
       <nav className="flex flex-wrap items-center gap-1 sm:gap-2" aria-label="Main navigation">
         <a href="/" aria-label="LaunchPAD home" className="mr-1 inline-flex min-h-11 items-center rounded-lg pr-2 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
+import Link from "@/app/components/StableLink";
 
 const statusColor: Record<string, string> = {
   DISCOVERY: "bg-slate-200 text-slate-700",

@@ -1,13 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 
 // First-run only: the API route behind this form refuses to create a
 // second account once one exists, so this page is safe to leave live --
 // after the first admin signs up it just becomes a permanent dead end.
 export default function SetupPage() {
-  const router = useRouter();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -29,8 +27,7 @@ export default function SetupPage() {
       setError(data.error || "Something went wrong.");
       return;
     }
-    router.push("/");
-    router.refresh();
+    window.location.assign("/");
   }
 
   return (

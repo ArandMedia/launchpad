@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { clientApi, clientErrorMessage } from "@/lib/client-api";
 
 const STATUSES = ["DISCOVERY", "IN_PROGRESS", "REVIEW", "BLOCKED", "COMPLETE"];
@@ -31,7 +30,6 @@ export default function ProjectHeader({
   project: Project;
   clientLabel: string;
 }) {
-  const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
   const [error, setError] = useState("");
@@ -54,7 +52,7 @@ export default function ProjectHeader({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ archived: archiving }),
       });
-      router.refresh();
+      window.location.reload();
     } catch (caught) {
       setError(clientErrorMessage(caught));
     } finally {
@@ -74,7 +72,7 @@ export default function ProjectHeader({
     setActionBusy(true);
     try {
       await clientApi(`/api/projects/${project.id}`, { method: "DELETE" });
-      router.push("/?view=projects");
+      window.location.assign("/?view=projects");
     } catch (caught) {
       setError(clientErrorMessage(caught));
       setActionBusy(false);
@@ -166,7 +164,7 @@ export default function ProjectHeader({
           />
         </div>
         {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-        <div className="sticky bottom-0 z-10 -mx-4 flex gap-2 border-t border-slate-200 bg-white/95 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur sm:-mx-5 sm:px-5">
+        <div className="sticky bottom-0 z-10 -mx-4 flex gap-2 border-t border-slate-200 bg-white px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:-mx-5 sm:px-5">
           <button
             type="submit"
             className="lp-button-primary"

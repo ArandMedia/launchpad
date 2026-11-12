@@ -1,14 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import Link from "next/link";
+import Link from "@/app/components/StableLink";
 import { clientApi, clientErrorMessage } from "@/lib/client-api";
 
 type Client = { id: string; name: string; companyName: string | null };
 
 export default function NewProjectPage() {
-  const router = useRouter();
   const [clients, setClients] = useState<Client[]>([]);
   const [clientsLoading, setClientsLoading] = useState(true);
   const [name, setName] = useState("");
@@ -53,7 +51,7 @@ export default function NewProjectPage() {
           targetDate: targetDate || undefined,
         }),
       });
-      router.push(`/projects/${data.project.id}`);
+      window.location.assign(`/projects/${data.project.id}`);
     } catch (caught) {
       setError(clientErrorMessage(caught));
     } finally {

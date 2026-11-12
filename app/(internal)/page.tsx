@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import Link from "next/link";
+import Link from "@/app/components/StableLink";
 import ProjectsList from "./ProjectsList";
 import { getTeamSession } from "@/lib/current-session";
 import { isLifeOSOwner } from "@/lib/lifeos-auth";

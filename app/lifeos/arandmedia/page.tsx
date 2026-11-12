@@ -1,4 +1,4 @@
-import Link from "next/link";
+import Link from "@/app/components/StableLink";
 import { db } from "@/lib/db";
 import DomainWorkspace from "../domain-workspace";
 import SectionHeader from "../section-header";

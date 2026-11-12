@@ -1,6 +1,6 @@
 "use client";
 
-import Link from "next/link";
+import Link from "@/app/components/StableLink";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
 type Goal = {

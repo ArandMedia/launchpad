@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import Link from "next/link";
+import Link from "@/app/components/StableLink";
 import ClientsList from "./ClientsList";
 
 export const dynamic = "force-dynamic";
