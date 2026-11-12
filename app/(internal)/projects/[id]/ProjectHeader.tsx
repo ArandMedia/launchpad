@@ -1,9 +1,8 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { clientApi, clientErrorMessage } from "@/lib/client-api";
-import { readProjectForm } from "@/lib/project-form";
 
 const STATUSES = ["DISCOVERY", "IN_PROGRESS", "REVIEW", "BLOCKED", "COMPLETE"];
 
@@ -33,69 +32,12 @@ export default function ProjectHeader({
   clientLabel: string;
 }) {
   const router = useRouter();
-  const saveController = useRef<AbortController | null>(null);
   const [editing, setEditing] = useState(false);
-  const [busy, setBusy] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
   const [error, setError] = useState("");
-  const [name, setName] = useState(project.name);
-  const [description, setDescription] = useState(project.description || "");
-  const [problem, setProblem] = useState(project.problem || "");
-  const [solution, setSolution] = useState(project.solution || "");
-  const [desiredOutcome, setDesiredOutcome] = useState(project.desiredOutcome || "");
-  const [status, setStatus] = useState(project.status);
-  const [startDate, setStartDate] = useState(toDateInput(project.startDate));
-  const [targetDate, setTargetDate] = useState(toDateInput(project.targetDate));
-
-  async function save(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (busy) return;
-    setError("");
-    // Read the live controls instead of relying on React state alone. Safari
-    // can leave the last textarea edit in the DOM until the field blurs,
-    // which made an iPad save submit the previous description value.
-    const values = readProjectForm(e.currentTarget);
-    if (!values.name || values.name.length > 200) {
-      setError("Enter a project name of 200 characters or less.");
-      return;
-    }
-    setBusy(true);
-    const controller = new AbortController();
-    saveController.current = controller;
-
-    try {
-      await clientApi(`/api/projects/${project.id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        signal: controller.signal,
-        body: JSON.stringify(values),
-      });
-      setEditing(false);
-      // A full reload is intentional here. On iPad, the App Router transition
-      // could receive the saved project and then stop committing UI updates,
-      // leaving both the editor and navigation looking frozen.
-      window.location.reload();
-    } catch (caught) {
-      if (!controller.signal.aborted) setError(clientErrorMessage(caught));
-    } finally {
-      if (saveController.current === controller) saveController.current = null;
-      setBusy(false);
-    }
-  }
 
   function cancelEditing() {
-    saveController.current?.abort("cancelled");
-    saveController.current = null;
-    setBusy(false);
     setError("");
-    setName(project.name);
-    setDescription(project.description || "");
-    setProblem(project.problem || "");
-    setSolution(project.solution || "");
-    setDesiredOutcome(project.desiredOutcome || "");
-    setStatus(project.status);
-    setStartDate(toDateInput(project.startDate));
-    setTargetDate(toDateInput(project.targetDate));
     setEditing(false);
   }
 
@@ -141,12 +83,17 @@ export default function ProjectHeader({
 
   if (editing) {
     return (
-      <form onSubmit={save} noValidate aria-busy={busy} className="lp-card mb-6 mt-5 grid gap-4">
+      <form
+        action={`/api/projects/${project.id}`}
+        method="post"
+        encType="multipart/form-data"
+        className="lp-card mb-6 mt-5 grid gap-4"
+      >
         <input
           name="name"
           className="lp-input font-medium"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
+          defaultValue={project.name}
+          maxLength={200}
           required
         />
         <textarea
@@ -154,8 +101,7 @@ export default function ProjectHeader({
           className="lp-input"
           placeholder="Description"
           rows={2}
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          defaultValue={project.description || ""}
         />
 
         <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
@@ -169,8 +115,7 @@ export default function ProjectHeader({
               className="lp-input mt-1"
               placeholder="What problem are we solving?"
               rows={2}
-              value={problem}
-              onChange={(e) => setProblem(e.target.value)}
+              defaultValue={project.problem || ""}
             />
           </label>
           <label className="text-xs text-slate-500">
@@ -180,8 +125,7 @@ export default function ProjectHeader({
               className="lp-input mt-1"
               placeholder="What are we building?"
               rows={2}
-              value={solution}
-              onChange={(e) => setSolution(e.target.value)}
+              defaultValue={project.solution || ""}
             />
           </label>
           <label className="text-xs text-slate-500">
@@ -191,8 +135,7 @@ export default function ProjectHeader({
               className="lp-input mt-1"
               placeholder="What does done look like?"
               rows={2}
-              value={desiredOutcome}
-              onChange={(e) => setDesiredOutcome(e.target.value)}
+              defaultValue={project.desiredOutcome || ""}
             />
           </label>
         </div>
@@ -201,8 +144,7 @@ export default function ProjectHeader({
           <select
             name="status"
             className="lp-input"
-            value={status}
-            onChange={(e) => setStatus(e.target.value)}
+            defaultValue={project.status}
           >
             {STATUSES.map((s) => (
               <option key={s} value={s}>
@@ -214,32 +156,29 @@ export default function ProjectHeader({
             name="startDate"
             type="date"
             className="lp-input"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
+            defaultValue={toDateInput(project.startDate)}
           />
           <input
             name="targetDate"
             type="date"
             className="lp-input"
-            value={targetDate}
-            onChange={(e) => setTargetDate(e.target.value)}
+            defaultValue={toDateInput(project.targetDate)}
           />
         </div>
         {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
         <div className="sticky bottom-0 z-10 -mx-4 flex gap-2 border-t border-slate-200 bg-white/95 px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 backdrop-blur sm:-mx-5 sm:px-5">
           <button
             type="submit"
-            disabled={busy}
             className="lp-button-primary"
           >
-            {busy ? "Saving…" : "Save changes"}
+            Save changes
           </button>
           <button
             type="button"
             onClick={cancelEditing}
             className="lp-button-secondary"
           >
-            {busy ? "Cancel save" : "Cancel"}
+            Cancel
           </button>
         </div>
       </form>
