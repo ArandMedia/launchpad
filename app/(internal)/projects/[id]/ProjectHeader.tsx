@@ -71,7 +71,10 @@ export default function ProjectHeader({
         body: JSON.stringify(values),
       });
       setEditing(false);
-      router.refresh();
+      // A full reload is intentional here. On iPad, the App Router transition
+      // could receive the saved project and then stop committing UI updates,
+      // leaving both the editor and navigation looking frozen.
+      window.location.reload();
     } catch (caught) {
       if (!controller.signal.aborted) setError(clientErrorMessage(caught));
     } finally {
