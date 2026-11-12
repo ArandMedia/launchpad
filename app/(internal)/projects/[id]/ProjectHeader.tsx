@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { clientApi, clientErrorMessage } from "@/lib/client-api";
+import { readProjectForm } from "@/lib/project-form";
 
 const STATUSES = ["DISCOVERY", "IN_PROGRESS", "REVIEW", "BLOCKED", "COMPLETE"];
 
@@ -46,11 +47,15 @@ export default function ProjectHeader({
   const [startDate, setStartDate] = useState(toDateInput(project.startDate));
   const [targetDate, setTargetDate] = useState(toDateInput(project.targetDate));
 
-  async function save(e: React.FormEvent) {
+  async function save(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (busy) return;
     setError("");
-    if (!name.trim() || name.trim().length > 200) {
+    // Read the live controls instead of relying on React state alone. Safari
+    // can leave the last textarea edit in the DOM until the field blurs,
+    // which made an iPad save submit the previous description value.
+    const values = readProjectForm(new FormData(e.currentTarget));
+    if (!values.name || values.name.length > 200) {
       setError("Enter a project name of 200 characters or less.");
       return;
     }
@@ -63,16 +68,7 @@ export default function ProjectHeader({
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         signal: controller.signal,
-        body: JSON.stringify({
-          name,
-          description,
-          problem,
-          solution,
-          desiredOutcome,
-          status,
-          startDate: startDate || null,
-          targetDate: targetDate || null,
-        }),
+        body: JSON.stringify(values),
       });
       setEditing(false);
       router.refresh();
@@ -144,12 +140,14 @@ export default function ProjectHeader({
     return (
       <form onSubmit={save} noValidate aria-busy={busy} className="lp-card mb-6 mt-5 grid gap-4">
         <input
+          name="name"
           className="lp-input font-medium"
           value={name}
           onChange={(e) => setName(e.target.value)}
           required
         />
         <textarea
+          name="description"
           className="lp-input"
           placeholder="Description"
           rows={2}
@@ -164,6 +162,7 @@ export default function ProjectHeader({
           <label className="text-xs text-slate-500">
             Problem
             <textarea
+              name="problem"
               className="lp-input mt-1"
               placeholder="What problem are we solving?"
               rows={2}
@@ -174,6 +173,7 @@ export default function ProjectHeader({
           <label className="text-xs text-slate-500">
             Solution
             <textarea
+              name="solution"
               className="lp-input mt-1"
               placeholder="What are we building?"
               rows={2}
@@ -184,6 +184,7 @@ export default function ProjectHeader({
           <label className="text-xs text-slate-500">
             Desired outcome
             <textarea
+              name="desiredOutcome"
               className="lp-input mt-1"
               placeholder="What does done look like?"
               rows={2}
@@ -195,6 +196,7 @@ export default function ProjectHeader({
 
         <div className="grid gap-3 sm:grid-cols-3">
           <select
+            name="status"
             className="lp-input"
             value={status}
             onChange={(e) => setStatus(e.target.value)}
@@ -206,12 +208,14 @@ export default function ProjectHeader({
             ))}
           </select>
           <input
+            name="startDate"
             type="date"
             className="lp-input"
             value={startDate}
             onChange={(e) => setStartDate(e.target.value)}
           />
           <input
+            name="targetDate"
             type="date"
             className="lp-input"
             value={targetDate}
