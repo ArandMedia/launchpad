@@ -23,6 +23,118 @@ function toDateInput(d: Date | null) {
   return new Date(d).toISOString().slice(0, 10);
 }
 
+export function ProjectEditForm({
+  project,
+  error,
+  onCancel,
+}: {
+  project: Project;
+  error: string;
+  onCancel: () => void;
+}) {
+  return (
+    <form
+      action={`/api/projects/${project.id}`}
+      method="post"
+      encType="multipart/form-data"
+      className="lp-card mb-6 mt-5 grid gap-4"
+    >
+      <input
+        name="name"
+        className="lp-input font-medium"
+        defaultValue={project.name}
+        maxLength={200}
+        required
+      />
+      <textarea
+        name="description"
+        className="lp-input"
+        placeholder="Description"
+        rows={2}
+        defaultValue={project.description || ""}
+      />
+
+      <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+          Scope (shown to the client too)
+        </p>
+        <label className="text-xs text-slate-500">
+          Problem
+          <textarea
+            name="problem"
+            className="lp-input mt-1"
+            placeholder="What problem are we solving?"
+            rows={2}
+            defaultValue={project.problem || ""}
+          />
+        </label>
+        <label className="text-xs text-slate-500">
+          Solution
+          <textarea
+            name="solution"
+            className="lp-input mt-1"
+            placeholder="What are we building?"
+            rows={2}
+            defaultValue={project.solution || ""}
+          />
+        </label>
+        <label className="text-xs text-slate-500">
+          Desired outcome
+          <textarea
+            name="desiredOutcome"
+            className="lp-input mt-1"
+            placeholder="What does done look like?"
+            rows={2}
+            defaultValue={project.desiredOutcome || ""}
+          />
+        </label>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-3">
+        <select
+          name="status"
+          className="lp-input"
+          defaultValue={project.status}
+        >
+          {STATUSES.map((s) => (
+            <option key={s} value={s}>
+              {s.replace("_", " ")}
+            </option>
+          ))}
+        </select>
+        <input
+          name="startDate"
+          type="date"
+          className="lp-input"
+          defaultValue={toDateInput(project.startDate)}
+        />
+        <input
+          name="targetDate"
+          type="date"
+          className="lp-input"
+          defaultValue={toDateInput(project.targetDate)}
+        />
+      </div>
+      {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      <div className="-mx-4 flex flex-wrap gap-2 border-t border-slate-200 bg-white px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:-mx-5 sm:px-5">
+        <button
+          type="submit"
+          className="lp-button-primary"
+        >
+          Save changes
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="lp-button-secondary"
+        >
+          Cancel
+        </button>
+      </div>
+    </form>
+  );
+}
+
 export default function ProjectHeader({
   project,
   clientLabel,
@@ -80,107 +192,7 @@ export default function ProjectHeader({
   }
 
   if (editing) {
-    return (
-      <form
-        action={`/api/projects/${project.id}`}
-        method="post"
-        encType="multipart/form-data"
-        className="lp-card mb-6 mt-5 grid gap-4"
-      >
-        <input
-          name="name"
-          className="lp-input font-medium"
-          defaultValue={project.name}
-          maxLength={200}
-          required
-        />
-        <textarea
-          name="description"
-          className="lp-input"
-          placeholder="Description"
-          rows={2}
-          defaultValue={project.description || ""}
-        />
-
-        <div className="grid gap-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
-            Scope (shown to the client too)
-          </p>
-          <label className="text-xs text-slate-500">
-            Problem
-            <textarea
-              name="problem"
-              className="lp-input mt-1"
-              placeholder="What problem are we solving?"
-              rows={2}
-              defaultValue={project.problem || ""}
-            />
-          </label>
-          <label className="text-xs text-slate-500">
-            Solution
-            <textarea
-              name="solution"
-              className="lp-input mt-1"
-              placeholder="What are we building?"
-              rows={2}
-              defaultValue={project.solution || ""}
-            />
-          </label>
-          <label className="text-xs text-slate-500">
-            Desired outcome
-            <textarea
-              name="desiredOutcome"
-              className="lp-input mt-1"
-              placeholder="What does done look like?"
-              rows={2}
-              defaultValue={project.desiredOutcome || ""}
-            />
-          </label>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-3">
-          <select
-            name="status"
-            className="lp-input"
-            defaultValue={project.status}
-          >
-            {STATUSES.map((s) => (
-              <option key={s} value={s}>
-                {s.replace("_", " ")}
-              </option>
-            ))}
-          </select>
-          <input
-            name="startDate"
-            type="date"
-            className="lp-input"
-            defaultValue={toDateInput(project.startDate)}
-          />
-          <input
-            name="targetDate"
-            type="date"
-            className="lp-input"
-            defaultValue={toDateInput(project.targetDate)}
-          />
-        </div>
-        {error && <p role="alert" className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
-        <div className="sticky bottom-0 z-10 -mx-4 flex gap-2 border-t border-slate-200 bg-white px-4 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:-mx-5 sm:px-5">
-          <button
-            type="submit"
-            className="lp-button-primary"
-          >
-            Save changes
-          </button>
-          <button
-            type="button"
-            onClick={cancelEditing}
-            className="lp-button-secondary"
-          >
-            Cancel
-          </button>
-        </div>
-      </form>
-    );
+    return <ProjectEditForm project={project} error={error} onCancel={cancelEditing} />;
   }
 
   return (
