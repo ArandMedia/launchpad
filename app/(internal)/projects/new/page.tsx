@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { clientApi, clientErrorMessage } from "@/lib/client-api";
 
 type Client = { id: string; name: string; companyName: string | null };
 
@@ -23,12 +24,12 @@ export default function NewProjectPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    fetch("/api/clients")
-      .then((r) => r.json())
+    clientApi<{ clients: Client[] }>("/api/clients")
       .then((data) => {
         setClients(data.clients || []);
         if (data.clients?.[0]) setClientId(data.clients[0].id);
       })
+      .catch((caught) => setError(clientErrorMessage(caught)))
       .finally(() => setClientsLoading(false));
   }, []);
 
@@ -36,28 +37,28 @@ export default function NewProjectPage() {
     e.preventDefault();
     setError(null);
     setLoading(true);
-    const res = await fetch("/api/projects", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name,
-        clientId,
-        description: description || undefined,
-        problem: problem || undefined,
-        solution: solution || undefined,
-        desiredOutcome: desiredOutcome || undefined,
-        status,
-        startDate: startDate || undefined,
-        targetDate: targetDate || undefined,
-      }),
-    });
-    const data = await res.json().catch(() => ({}));
-    setLoading(false);
-    if (!res.ok) {
-      setError(data.error || "Something went wrong.");
-      return;
+    try {
+      const data = await clientApi<{ project: { id: string } }>("/api/projects", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          clientId,
+          description: description || undefined,
+          problem: problem || undefined,
+          solution: solution || undefined,
+          desiredOutcome: desiredOutcome || undefined,
+          status,
+          startDate: startDate || undefined,
+          targetDate: targetDate || undefined,
+        }),
+      });
+      router.push(`/projects/${data.project.id}`);
+    } catch (caught) {
+      setError(clientErrorMessage(caught));
+    } finally {
+      setLoading(false);
     }
-    router.push(`/projects/${data.project.id}`);
   }
 
   if (!clientsLoading && clients.length === 0) {
@@ -89,7 +90,7 @@ export default function NewProjectPage() {
       <p className="lp-eyebrow mt-5">Work portfolio</p>
       <h1 className="lp-title">New project</h1>
       <p className="lp-subtitle">Capture the client, scope, status, and delivery window in one place.</p>
-      <form onSubmit={handleSubmit} className="lp-card mt-6 grid gap-4">
+      <form onSubmit={handleSubmit} noValidate className="lp-card mt-6 grid gap-4">
         <input
           className="lp-input"
           placeholder="Project name"

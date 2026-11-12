@@ -24,7 +24,6 @@ export default async function ClientPortal(props: { params: Promise<{ clientSlug
     where: { slug: params.clientSlug },
     include: {
       projects: {
-        where: { archivedAt: null },
         orderBy: { updatedAt: "desc" },
         include: {
           milestones: { orderBy: { targetDate: "asc" } },
@@ -46,7 +45,7 @@ export default async function ClientPortal(props: { params: Promise<{ clientSlug
 
   return (
     <main className="min-h-screen bg-slate-50">
-      <header className="bg-white border-b border-slate-200 px-8 py-6 flex items-center justify-between">
+      <header className="flex items-center justify-between border-b border-slate-200 bg-white px-4 py-5 sm:px-8 sm:py-6">
         <div>
           <p className="text-sm text-slate-400">Welcome back</p>
           <h1 className="text-2xl font-semibold text-slate-900">{client.name}</h1>
@@ -54,7 +53,7 @@ export default async function ClientPortal(props: { params: Promise<{ clientSlug
         <PortalLogoutButton />
       </header>
 
-      <div className="max-w-3xl mx-auto p-8 grid gap-8">
+      <div className="mx-auto grid max-w-3xl gap-8 p-4 sm:p-8">
         <PortalProjectList projects={client.projects} />
       </div>
     </main>

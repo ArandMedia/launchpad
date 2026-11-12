@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { clientApi, clientErrorMessage } from "@/lib/client-api";
 
 const STATUSES = ["DISCOVERY", "IN_PROGRESS", "REVIEW", "BLOCKED", "COMPLETE"];
 
@@ -34,6 +35,7 @@ export default function ProjectHeader({
   const saveController = useRef<AbortController | null>(null);
   const [editing, setEditing] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [actionBusy, setActionBusy] = useState(false);
   const [error, setError] = useState("");
   const [name, setName] = useState(project.name);
   const [description, setDescription] = useState(project.description || "");
@@ -48,13 +50,16 @@ export default function ProjectHeader({
     e.preventDefault();
     if (busy) return;
     setError("");
+    if (!name.trim() || name.trim().length > 200) {
+      setError("Enter a project name of 200 characters or less.");
+      return;
+    }
     setBusy(true);
     const controller = new AbortController();
     saveController.current = controller;
-    const timeout = window.setTimeout(() => controller.abort("timeout"), 15_000);
 
     try {
-      const response = await fetch(`/api/projects/${project.id}`, {
+      await clientApi(`/api/projects/${project.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         signal: controller.signal,
@@ -69,18 +74,11 @@ export default function ProjectHeader({
           targetDate: targetDate || null,
         }),
       });
-      const data = await response.json().catch(() => null);
-      if (!response.ok) throw new Error(data?.error || "The project could not be saved.");
       setEditing(false);
       router.refresh();
     } catch (caught) {
-      if (!controller.signal.aborted || controller.signal.reason === "timeout") {
-        setError(controller.signal.reason === "timeout"
-          ? "Saving took too long. Your edits are still here, so you can try again."
-          : caught instanceof Error ? caught.message : "The project could not be saved.");
-      }
+      if (!controller.signal.aborted) setError(clientErrorMessage(caught));
     } finally {
-      window.clearTimeout(timeout);
       if (saveController.current === controller) saveController.current = null;
       setBusy(false);
     }
@@ -107,12 +105,20 @@ export default function ProjectHeader({
     if (archiving && !confirm("Archive this project? It stays intact and stays visible on the client's portal — it just drops out of your default project list. You can unarchive any time.")) {
       return;
     }
-    await fetch(`/api/projects/${project.id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ archived: archiving }),
-    });
-    router.refresh();
+    setError("");
+    setActionBusy(true);
+    try {
+      await clientApi(`/api/projects/${project.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ archived: archiving }),
+      });
+      router.refresh();
+    } catch (caught) {
+      setError(clientErrorMessage(caught));
+    } finally {
+      setActionBusy(false);
+    }
   }
 
   async function deleteProject() {
@@ -123,13 +129,20 @@ export default function ProjectHeader({
     ) {
       return;
     }
-    await fetch(`/api/projects/${project.id}`, { method: "DELETE" });
-    router.push("/");
+    setError("");
+    setActionBusy(true);
+    try {
+      await clientApi(`/api/projects/${project.id}`, { method: "DELETE" });
+      router.push("/?view=projects");
+    } catch (caught) {
+      setError(clientErrorMessage(caught));
+      setActionBusy(false);
+    }
   }
 
   if (editing) {
     return (
-      <form onSubmit={save} aria-busy={busy} className="lp-card mb-6 mt-5 grid gap-4">
+      <form onSubmit={save} noValidate aria-busy={busy} className="lp-card mb-6 mt-5 grid gap-4">
         <input
           className="lp-input font-medium"
           value={name}
@@ -228,6 +241,7 @@ export default function ProjectHeader({
 
   return (
     <div className="lp-card mb-6 mt-5">
+      {error && <p role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
@@ -274,13 +288,13 @@ export default function ProjectHeader({
           )}
         </div>
         <div className="flex flex-wrap items-center gap-1 shrink-0">
-          <button onClick={() => { setError(""); setEditing(true); }} className="lp-button-secondary">
+          <button disabled={actionBusy} onClick={() => { setError(""); setEditing(true); }} className="lp-button-secondary">
             Edit
           </button>
-          <button onClick={toggleArchive} className="lp-button-ghost">
+          <button disabled={actionBusy} onClick={toggleArchive} className="lp-button-ghost disabled:opacity-50">
             {project.archivedAt ? "Unarchive" : "Archive"}
           </button>
-          <button onClick={deleteProject} className="inline-flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 hover:text-red-800">
+          <button disabled={actionBusy} onClick={deleteProject} className="inline-flex min-h-11 items-center rounded-lg px-3 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 hover:text-red-800 disabled:opacity-50">
             Delete
           </button>
         </div>

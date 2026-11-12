@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { clientApi, clientErrorMessage } from "@/lib/client-api";
 
 type Task = { id: string; title: string; status: string; dueDate: Date | null };
 type Milestone = {
@@ -50,6 +51,7 @@ export default function ProjectPanels({
   documents: Document[];
 }) {
   const router = useRouter();
+  const [actionError, setActionError] = useState<string | null>(null);
 
   const [docTitle, setDocTitle] = useState("");
   const [docCategory, setDocCategory] = useState("OTHER");
@@ -69,89 +71,100 @@ export default function ProjectPanels({
   const [updateVisible, setUpdateVisible] = useState(false);
   const [updateBusy, setUpdateBusy] = useState(false);
 
+  async function request(url: string, init: RequestInit) {
+    setActionError(null);
+    try {
+      return await clientApi(url, init);
+    } catch (caught) {
+      setActionError(clientErrorMessage(caught));
+      return null;
+    }
+  }
+
   async function addTask(e: React.FormEvent) {
     e.preventDefault();
     if (!taskTitle.trim()) return;
     setTaskBusy(true);
-    await fetch(`/api/projects/${projectId}/tasks`, {
+    const saved = await request(`/api/projects/${projectId}/tasks`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title: taskTitle }),
     });
-    setTaskTitle("");
+    if (saved) {
+      setTaskTitle("");
+      router.refresh();
+    }
     setTaskBusy(false);
-    router.refresh();
   }
 
   async function toggleTask(task: Task) {
     const next = task.status === "DONE" ? "TODO" : "DONE";
-    await fetch(`/api/tasks/${task.id}`, {
+    if (await request(`/api/tasks/${task.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ status: next }),
-    });
-    router.refresh();
+    })) router.refresh();
   }
 
   async function deleteTask(task: Task, e: React.MouseEvent) {
     e.stopPropagation();
     if (!confirm(`Delete task "${task.title}"?`)) return;
-    await fetch(`/api/tasks/${task.id}`, { method: "DELETE" });
-    router.refresh();
+    if (await request(`/api/tasks/${task.id}`, { method: "DELETE" })) router.refresh();
   }
 
   async function addMilestone(e: React.FormEvent) {
     e.preventDefault();
     if (!milestoneTitle.trim()) return;
     setMilestoneBusy(true);
-    await fetch(`/api/projects/${projectId}/milestones`, {
+    const saved = await request(`/api/projects/${projectId}/milestones`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title: milestoneTitle, targetDate: milestoneDate || undefined }),
     });
-    setMilestoneTitle("");
-    setMilestoneDate("");
+    if (saved) {
+      setMilestoneTitle("");
+      setMilestoneDate("");
+      router.refresh();
+    }
     setMilestoneBusy(false);
-    router.refresh();
   }
 
   async function toggleMilestone(milestone: Milestone) {
-    await fetch(`/api/milestones/${milestone.id}`, {
+    if (await request(`/api/milestones/${milestone.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ completed: !milestone.completedAt }),
-    });
-    router.refresh();
+    })) router.refresh();
   }
 
   async function deleteMilestone(milestone: Milestone, e: React.MouseEvent) {
     e.stopPropagation();
     if (!confirm(`Delete milestone "${milestone.title}"?`)) return;
-    await fetch(`/api/milestones/${milestone.id}`, { method: "DELETE" });
-    router.refresh();
+    if (await request(`/api/milestones/${milestone.id}`, { method: "DELETE" })) router.refresh();
   }
 
   async function postUpdate(e: React.FormEvent) {
     e.preventDefault();
     if (!updateBody.trim()) return;
     setUpdateBusy(true);
-    await fetch(`/api/projects/${projectId}`, {
+    const saved = await request(`/api/projects/${projectId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         postUpdate: { body: updateBody, clientVisible: updateVisible },
       }),
     });
-    setUpdateBody("");
-    setUpdateVisible(false);
+    if (saved) {
+      setUpdateBody("");
+      setUpdateVisible(false);
+      router.refresh();
+    }
     setUpdateBusy(false);
-    router.refresh();
   }
 
   async function deleteUpdate(update: Update) {
     if (!confirm("Delete this update? This does not unsend any notification email already sent.")) return;
-    await fetch(`/api/updates/${update.id}`, { method: "DELETE" });
-    router.refresh();
+    if (await request(`/api/updates/${update.id}`, { method: "DELETE" })) router.refresh();
   }
 
   async function uploadDocument(e: React.FormEvent) {
@@ -172,16 +185,14 @@ export default function ProjectPanels({
     formData.append("category", docCategory);
     formData.append("clientVisible", String(docVisible));
 
-    const res = await fetch(`/api/projects/${projectId}/documents`, {
-      method: "POST",
-      body: formData,
-    });
-    setDocBusy(false);
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      setDocError(data.error || "Upload failed.");
+    try {
+      await clientApi(`/api/projects/${projectId}/documents`, { method: "POST", body: formData }, 45_000);
+    } catch (caught) {
+      setDocError(clientErrorMessage(caught));
+      setDocBusy(false);
       return;
     }
+    setDocBusy(false);
     setDocTitle("");
     setDocCategory("OTHER");
     setDocFile(null);
@@ -190,22 +201,21 @@ export default function ProjectPanels({
   }
 
   async function toggleDocVisibility(doc: Document) {
-    await fetch(`/api/documents/${doc.id}`, {
+    if (await request(`/api/documents/${doc.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ clientVisible: !doc.clientVisible }),
-    });
-    router.refresh();
+    })) router.refresh();
   }
 
   async function deleteDocument(doc: Document) {
     if (!confirm(`Delete "${doc.title}"? This can't be undone.`)) return;
-    await fetch(`/api/documents/${doc.id}`, { method: "DELETE" });
-    router.refresh();
+    if (await request(`/api/documents/${doc.id}`, { method: "DELETE" })) router.refresh();
   }
 
   return (
     <>
+      {actionError && <p role="alert" className="mb-5 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{actionError}</p>}
       <section className="lp-card mb-5">
         <h2 className="lp-section-heading mb-3">
           Tasks
