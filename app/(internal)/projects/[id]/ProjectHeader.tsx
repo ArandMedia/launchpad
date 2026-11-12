@@ -54,7 +54,7 @@ export default function ProjectHeader({
     // Read the live controls instead of relying on React state alone. Safari
     // can leave the last textarea edit in the DOM until the field blurs,
     // which made an iPad save submit the previous description value.
-    const values = readProjectForm(new FormData(e.currentTarget));
+    const values = readProjectForm(e.currentTarget);
     if (!values.name || values.name.length > 200) {
       setError("Enter a project name of 200 characters or less.");
       return;
