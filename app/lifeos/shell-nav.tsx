@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 const links = [
   ["Today", "/lifeos/today", "Now"],
+  ["Decision Matrix", "/lifeos/decision-matrix", "Prioritize today"],
   ["Timeline", "/lifeos/timeline", "Life → Hour"],
   ["Pillars", "/lifeos/pillars", "Health · Wealth · Relationships"],
   ["Self & Purpose", "/lifeos/self", "Identity · Learning · Principles"],
