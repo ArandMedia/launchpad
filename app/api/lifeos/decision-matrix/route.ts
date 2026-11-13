@@ -21,6 +21,15 @@ type SourceSnapshot = {
   dueAt: Date | null;
 };
 
+type MatrixResponseItem = SourceSnapshot & {
+  createdAt: Date;
+  projectId: string | null;
+  projectName: string | null;
+  clientId: string | null;
+  clientName: string | null;
+  quadrant: string | null;
+};
+
 async function sourceSnapshot(ownerId: string, sourceKind: DecisionSourceKind, sourceId: string): Promise<SourceSnapshot | null> {
   const projectWhere = { archivedAt: null, status: { not: "COMPLETE" as const } };
   if (sourceKind === "PROJECT_TASK") {
@@ -86,13 +95,18 @@ export async function GET(req: NextRequest) {
   ]);
 
   const placementBySource = new Map(placements.map((item) => [decisionItemKey(item.sourceKind as DecisionSourceKind, item.sourceId), item]));
-  const items = [
+  const items: MatrixResponseItem[] = [
     ...tasks.map((item) => ({
       sourceKind: "PROJECT_TASK" as const,
       sourceId: item.id,
       title: item.title,
       context: `${item.project.client.companyName || item.project.client.name} · ${item.project.name}`,
       dueAt: item.dueDate,
+      createdAt: item.createdAt,
+      projectId: item.project.id,
+      projectName: item.project.name,
+      clientId: item.project.client.id,
+      clientName: item.project.client.companyName || item.project.client.name,
     })),
     ...milestones.map((item) => ({
       sourceKind: "MILESTONE" as const,
@@ -100,6 +114,11 @@ export async function GET(req: NextRequest) {
       title: item.title,
       context: `${item.project.client.companyName || item.project.client.name} · ${item.project.name} · milestone`,
       dueAt: item.targetDate,
+      createdAt: item.createdAt,
+      projectId: item.project.id,
+      projectName: item.project.name,
+      clientId: item.project.client.id,
+      clientName: item.project.client.companyName || item.project.client.name,
     })),
     ...actions.map((item) => ({
       sourceKind: "NEXT_ACTION" as const,
@@ -107,6 +126,11 @@ export async function GET(req: NextRequest) {
       title: item.title,
       context: `${item.domainKey.toLowerCase().replaceAll("_", " ")} · next action`,
       dueAt: item.dueAt,
+      createdAt: item.createdAt,
+      projectId: null,
+      projectName: null,
+      clientId: null,
+      clientName: null,
     })),
   ].map((item) => ({
     ...item,
@@ -123,6 +147,11 @@ export async function GET(req: NextRequest) {
       title: placement.titleSnapshot,
       context: placement.contextSnapshot,
       dueAt: placement.dueAtSnapshot,
+      createdAt: placement.createdAt,
+      projectId: null,
+      projectName: null,
+      clientId: null,
+      clientName: null,
       quadrant: placement.quadrant,
     });
   }
