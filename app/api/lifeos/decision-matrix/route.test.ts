@@ -94,7 +94,7 @@ describe("daily decision matrix API", () => {
 
   it("gathers open project work and next actions, then stores a placement", async () => {
     state.ownerId = "owner-1";
-    const project = { name: "LaunchPAD", client: { name: "ArandMedia", companyName: "ArandMedia" } };
+    const project = { id: "project-1", name: "LaunchPAD", client: { id: "client-1", name: "ArandMedia", companyName: "ArandMedia" } };
     state.tasks.push({ id: "task-1", title: "Finish matrix", status: "TODO", dueDate: new Date("2026-11-13T18:00:00Z"), createdAt: new Date(), project });
     state.milestones.push({ id: "milestone-1", title: "Daily planning live", completedAt: null, targetDate: null, createdAt: new Date(), project });
     state.actions.push({ id: "action-1", ownerId: "owner-1", title: "Review health plan", status: "OPEN", dueAt: null, createdAt: new Date(), domainKey: "HEALTH" });
@@ -102,6 +102,7 @@ describe("daily decision matrix API", () => {
     const initial = await (await GET(request("GET", undefined, "?date=2026-11-13"))).json();
     expect(initial.items).toHaveLength(3);
     expect(initial.items.every((item: { quadrant: string | null }) => item.quadrant === null)).toBe(true);
+    expect(initial.items[0]).toMatchObject({ projectId: "project-1", projectName: "LaunchPAD", clientId: "client-1", clientName: "ArandMedia" });
 
     expect((await PATCH(request("PATCH", { date: "2026-11-13", sourceKind: "PROJECT_TASK", sourceId: "task-1", quadrant: "DO_NOW" }))).status).toBe(200);
     const placed = await (await GET(request("GET", undefined, "?date=2026-11-13"))).json();
@@ -110,7 +111,7 @@ describe("daily decision matrix API", () => {
 
   it("opens a fresh matrix on the next date without deleting yesterday", async () => {
     state.ownerId = "owner-1";
-    const project = { name: "LaunchPAD", client: { name: "ArandMedia", companyName: null } };
+    const project = { id: "project-1", name: "LaunchPAD", client: { id: "client-1", name: "ArandMedia", companyName: null } };
     state.tasks.push({ id: "task-1", title: "Plan the day", status: "TODO", dueDate: null, createdAt: new Date(), project });
     await PATCH(request("PATCH", { date: "2026-11-12", sourceKind: "PROJECT_TASK", sourceId: "task-1", quadrant: "SCHEDULE" }));
 
@@ -122,7 +123,7 @@ describe("daily decision matrix API", () => {
 
   it("returns an item to the pool without changing the underlying task", async () => {
     state.ownerId = "owner-1";
-    const project = { name: "LaunchPAD", client: { name: "ArandMedia", companyName: null } };
+    const project = { id: "project-1", name: "LaunchPAD", client: { id: "client-1", name: "ArandMedia", companyName: null } };
     state.tasks.push({ id: "task-1", title: "Plan the day", status: "TODO", dueDate: null, createdAt: new Date(), project });
     await PATCH(request("PATCH", { date: "2026-11-13", sourceKind: "PROJECT_TASK", sourceId: "task-1", quadrant: "DELEGATE" }));
     expect((await PATCH(request("PATCH", { date: "2026-11-13", sourceKind: "PROJECT_TASK", sourceId: "task-1", quadrant: null }))).status).toBe(200);

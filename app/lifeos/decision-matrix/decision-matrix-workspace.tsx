@@ -14,10 +14,17 @@ type DecisionItem = {
   title: string;
   context: string;
   dueAt: string | null;
+  createdAt: string;
+  projectId: string | null;
+  projectName: string | null;
+  clientId: string | null;
+  clientName: string | null;
   quadrant: DecisionQuadrant | null;
 };
 
 type MatrixData = { date: string; items: DecisionItem[] };
+type DueFilter = "ALL" | "OVERDUE" | "TODAY" | "NEXT_7_DAYS" | "NO_DUE_DATE";
+type SortMode = "DUE_SOON" | "PROJECT" | "CLIENT" | "TITLE" | "NEWEST";
 
 const quadrants: Array<{
   id: DecisionQuadrant;
@@ -55,6 +62,23 @@ function dueLabel(value: string | null) {
   return `Due ${new Intl.DateTimeFormat("en-US", { timeZone: LIFEOS_TIME_ZONE, month: "short", day: "numeric", year: "numeric" }).format(new Date(value))}`;
 }
 
+function localDateForInstant(value: string) {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: LIFEOS_TIME_ZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date(value));
+  const values = Object.fromEntries(parts.filter((part) => part.type !== "literal").map((part) => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function addCalendarDays(value: string, days: number) {
+  const date = new Date(`${value}T12:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
 export default function DecisionMatrixWorkspace() {
   const [data, setData] = useState<MatrixData | null>(null);
   const [error, setError] = useState("");
@@ -65,6 +89,11 @@ export default function DecisionMatrixWorkspace() {
   const [dragPoint, setDragPoint] = useState<{ x: number; y: number } | null>(null);
   const [search, setSearch] = useState("");
   const [sourceFilter, setSourceFilter] = useState<"ALL" | DecisionSourceKind>("ALL");
+  const [projectFilter, setProjectFilter] = useState("ALL");
+  const [clientFilter, setClientFilter] = useState("ALL");
+  const [dueFilter, setDueFilter] = useState<DueFilter>("ALL");
+  const [sortMode, setSortMode] = useState<SortMode>("DUE_SOON");
+  const [moreFiltersOpen, setMoreFiltersOpen] = useState(false);
   const dragKeyRef = useRef("");
 
   async function load() {
@@ -90,14 +119,66 @@ export default function DecisionMatrixWorkspace() {
 
   const selectedItem = data?.items.find((item) => decisionItemKey(item.sourceKind, item.sourceId) === selectedKey) ?? null;
   const draggingItem = data?.items.find((item) => decisionItemKey(item.sourceKind, item.sourceId) === draggingKey) ?? null;
+  const unplacedItems = useMemo(() => (data?.items ?? []).filter((item) => !item.quadrant), [data]);
+  const projectOptions = useMemo(() => {
+    const projects = new Map<string, { id: string; name: string; clientName: string; count: number }>();
+    for (const item of data?.items ?? []) {
+      if (!item.projectId || !item.projectName) continue;
+      const existing = projects.get(item.projectId);
+      projects.set(item.projectId, {
+        id: item.projectId,
+        name: item.projectName,
+        clientName: item.clientName ?? "",
+        count: (existing?.count ?? 0) + (item.quadrant ? 0 : 1),
+      });
+    }
+    return [...projects.values()].sort((left, right) => left.name.localeCompare(right.name));
+  }, [data]);
+  const clientOptions = useMemo(() => {
+    const clients = new Map<string, { id: string; name: string; count: number }>();
+    for (const item of data?.items ?? []) {
+      if (!item.clientId || !item.clientName) continue;
+      const existing = clients.get(item.clientId);
+      clients.set(item.clientId, { id: item.clientId, name: item.clientName, count: (existing?.count ?? 0) + (item.quadrant ? 0 : 1) });
+    }
+    return [...clients.values()].sort((left, right) => left.name.localeCompare(right.name));
+  }, [data]);
   const pool = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return (data?.items ?? []).filter((item) => {
-      if (item.quadrant) return false;
+    const today = data?.date ?? localToday();
+    const nextWeek = addCalendarDays(today, 7);
+    const filtered = unplacedItems.filter((item) => {
       if (sourceFilter !== "ALL" && item.sourceKind !== sourceFilter) return false;
+      if (projectFilter !== "ALL" && item.projectId !== projectFilter) return false;
+      if (clientFilter !== "ALL" && item.clientId !== clientFilter) return false;
+      const dueDate = item.dueAt ? localDateForInstant(item.dueAt) : null;
+      if (dueFilter === "OVERDUE" && (!dueDate || dueDate >= today)) return false;
+      if (dueFilter === "TODAY" && dueDate !== today) return false;
+      if (dueFilter === "NEXT_7_DAYS" && (!dueDate || dueDate < today || dueDate > nextWeek)) return false;
+      if (dueFilter === "NO_DUE_DATE" && dueDate) return false;
       return !query || item.title.toLowerCase().includes(query) || item.context.toLowerCase().includes(query);
     });
-  }, [data, search, sourceFilter]);
+    return filtered.sort((left, right) => {
+      if (sortMode === "TITLE") return left.title.localeCompare(right.title);
+      if (sortMode === "PROJECT") return (left.projectName ?? "zzzz").localeCompare(right.projectName ?? "zzzz") || left.title.localeCompare(right.title);
+      if (sortMode === "CLIENT") return (left.clientName ?? "zzzz").localeCompare(right.clientName ?? "zzzz") || left.title.localeCompare(right.title);
+      if (sortMode === "NEWEST") return new Date(right.createdAt).valueOf() - new Date(left.createdAt).valueOf();
+      if (left.dueAt && right.dueAt) return new Date(left.dueAt).valueOf() - new Date(right.dueAt).valueOf();
+      if (left.dueAt) return -1;
+      if (right.dueAt) return 1;
+      return left.title.localeCompare(right.title);
+    });
+  }, [clientFilter, data?.date, dueFilter, projectFilter, search, sortMode, sourceFilter, unplacedItems]);
+  const activeFilterCount = [sourceFilter !== "ALL", projectFilter !== "ALL", clientFilter !== "ALL", dueFilter !== "ALL"].filter(Boolean).length;
+
+  function clearFilters() {
+    setSearch("");
+    setSourceFilter("ALL");
+    setProjectFilter("ALL");
+    setClientFilter("ALL");
+    setDueFilter("ALL");
+    setSortMode("DUE_SOON");
+  }
 
   async function move(item: DecisionItem, quadrant: DecisionQuadrant | null) {
     if (!data) return;
@@ -251,12 +332,22 @@ export default function DecisionMatrixWorkspace() {
     <section className="rounded-2xl border border-slate-700 bg-slate-900 p-4 sm:p-5" aria-labelledby="task-pool-heading">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div><p className="text-xs font-semibold uppercase tracking-[0.18em] text-violet-300">Unsorted work</p><h3 id="task-pool-heading" className="mt-1 text-xl font-semibold">Task pool</h3><p className="mt-1 text-sm text-slate-400">Open project tasks, milestones, and Pillars next actions that have not been placed today.</p></div>
-        <span className="text-sm font-semibold text-slate-300">{pool.length} showing</span>
+        <span className="text-sm font-semibold text-slate-300">{pool.length} of {unplacedItems.length} showing</span>
       </div>
-      <div className="mt-4 grid gap-3 sm:grid-cols-[minmax(0,1fr)_12rem]">
+      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1fr)_minmax(13rem,18rem)_12rem]">
         <label className="text-sm font-medium text-slate-300">Search tasks<input value={search} onChange={(event) => setSearch(event.target.value)} className="mt-1 min-h-11 w-full rounded-lg border border-slate-600 bg-slate-800 px-3 text-base text-slate-100 focus:border-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-300/30" placeholder="Task, project, client…" /></label>
+        <label className="text-sm font-medium text-slate-300">Project<select value={projectFilter} onChange={(event) => setProjectFilter(event.target.value)} className="mt-1 min-h-11 w-full rounded-lg border border-slate-600 bg-slate-800 px-3 text-base text-slate-100"><option value="ALL">All projects</option>{projectOptions.map((project) => <option key={project.id} value={project.id}>{project.name}{project.clientName ? ` · ${project.clientName}` : ""} ({project.count})</option>)}</select></label>
         <label className="text-sm font-medium text-slate-300">Source<select value={sourceFilter} onChange={(event) => setSourceFilter(event.target.value as typeof sourceFilter)} className="mt-1 min-h-11 w-full rounded-lg border border-slate-600 bg-slate-800 px-3 text-base text-slate-100"><option value="ALL">All open work</option><option value="PROJECT_TASK">Project tasks</option><option value="MILESTONE">Milestones</option><option value="NEXT_ACTION">Next actions</option></select></label>
       </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <button type="button" aria-expanded={moreFiltersOpen} onClick={() => setMoreFiltersOpen((open) => !open)} className="min-h-11 rounded-lg border border-slate-600 px-4 text-sm font-semibold text-slate-200 hover:bg-slate-800">{moreFiltersOpen ? "Hide" : "More"} filters{activeFilterCount ? ` · ${activeFilterCount} active` : ""}</button>
+        {(activeFilterCount > 0 || search || sortMode !== "DUE_SOON") && <button type="button" onClick={clearFilters} className="min-h-11 rounded-lg px-4 text-sm font-semibold text-violet-300 hover:bg-violet-950/40">Clear filters</button>}
+      </div>
+      {moreFiltersOpen && <div className="mt-3 grid gap-3 rounded-xl border border-slate-700 bg-slate-950/45 p-3 sm:grid-cols-3">
+        <label className="text-sm font-medium text-slate-300">Client<select value={clientFilter} onChange={(event) => setClientFilter(event.target.value)} className="mt-1 min-h-11 w-full rounded-lg border border-slate-600 bg-slate-800 px-3 text-base text-slate-100"><option value="ALL">All clients</option>{clientOptions.map((client) => <option key={client.id} value={client.id}>{client.name} ({client.count})</option>)}</select></label>
+        <label className="text-sm font-medium text-slate-300">Due date<select value={dueFilter} onChange={(event) => setDueFilter(event.target.value as DueFilter)} className="mt-1 min-h-11 w-full rounded-lg border border-slate-600 bg-slate-800 px-3 text-base text-slate-100"><option value="ALL">Any due date</option><option value="OVERDUE">Overdue</option><option value="TODAY">Due today</option><option value="NEXT_7_DAYS">Due in 7 days</option><option value="NO_DUE_DATE">No due date</option></select></label>
+        <label className="text-sm font-medium text-slate-300">Sort by<select value={sortMode} onChange={(event) => setSortMode(event.target.value as SortMode)} className="mt-1 min-h-11 w-full rounded-lg border border-slate-600 bg-slate-800 px-3 text-base text-slate-100"><option value="DUE_SOON">Due soon</option><option value="PROJECT">Project</option><option value="CLIENT">Client</option><option value="TITLE">A–Z</option><option value="NEWEST">Newest added</option></select></label>
+      </div>}
       <div className="mt-4 grid max-h-[42rem] gap-3 overflow-y-auto overscroll-contain pr-1 lg:grid-cols-2">
         {pool.map((item) => <TaskCard key={decisionItemKey(item.sourceKind, item.sourceId)} item={item} />)}
         {!pool.length && <p className="rounded-xl border border-dashed border-slate-700 p-5 text-center text-sm text-slate-400 lg:col-span-2">Everything matching this view is already placed—or there is no open work yet.</p>}
