@@ -293,23 +293,23 @@ model LifeOSDomainState {
 }
 
 model LifeOSRoutine {
-  id                      String      @id @default(cuid())
+  id                      String                    @id @default(cuid())
   ownerId                 String
   domainKey               String
   title                   String
-  cadence                 String      @default("WEEKLY")
-  active                  Boolean     @default(true)
-  notes                   String      @default("")
-  scheduleTime            String      @default("")
-  scheduleDurationMinutes Int         @default(30)
-  scheduleWeekdays        Int[]       @default([])
+  cadence                 String                    @default("WEEKLY")
+  active                  Boolean                   @default(true)
+  notes                   String                    @default("")
+  scheduleTime            String                    @default("")
+  scheduleDurationMinutes Int                       @default(30)
+  scheduleWeekdays        Int[]                     @default([])
   scheduleDayOfMonth      Int?
-  scheduleStartsOn        DateTime?   @db.Date
+  scheduleStartsOn        DateTime?                 @db.Date
   objectiveId             String?
-  objective               LifeOSGoal? @relation(fields: [objectiveId], references: [id], onDelete: SetNull)
+  objective               LifeOSGoal?               @relation(fields: [objectiveId], references: [id], onDelete: SetNull)
   occurrences             LifeOSRoutineOccurrence[]
-  createdAt               DateTime    @default(now())
-  updatedAt               DateTime    @updatedAt
+  createdAt               DateTime                  @default(now())
+  updatedAt               DateTime                  @updatedAt
 
   @@index([ownerId, domainKey, active])
   @@index([objectiveId])
@@ -347,6 +347,26 @@ model LifeOSAction {
 
   @@index([ownerId, domainKey, status])
   @@index([ownerId, dueAt])
+}
+
+// Daily Eisenhower Matrix placements are dated instead of destructively
+// cleared. Each new Chicago calendar day starts empty while prior-day choices
+// remain available for future review and reporting.
+model LifeOSDecisionPlacement {
+  id              String    @id @default(cuid())
+  ownerId         String
+  date            DateTime  @db.Date
+  sourceKind      String
+  sourceId        String
+  titleSnapshot   String
+  contextSnapshot String    @default("")
+  dueAtSnapshot   DateTime? @db.Timestamptz(3)
+  quadrant        String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@unique([ownerId, date, sourceKind, sourceId])
+  @@index([ownerId, date, quadrant])
 }
 
 model LifeOSMetricDefinition {
