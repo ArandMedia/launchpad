@@ -386,6 +386,22 @@ model LifeOSPillarResource {
   @@index([ownerId, favorite, updatedAt])
 }
 
+// Workout details are encrypted as one authenticated payload so private health
+// context never lands in queryable text columns. The timestamp remains indexed
+// for chronological history and range summaries.
+model LifeOSWorkout {
+  id         String   @id @default(cuid())
+  ownerId    String
+  ciphertext String
+  iv         String
+  authTag    String
+  occurredAt DateTime @db.Timestamptz(3)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([ownerId, occurredAt])
+}
+
 model LifeOSMetricDefinition {
   id                 String                    @id @default(cuid())
   ownerId            String
