@@ -10,6 +10,7 @@ import {
   type WorkoutCalorieSource,
   type WorkoutIntensity,
 } from "@/lib/lifeos-workouts";
+import type { PlannedWorkoutHandoff } from "@/lib/lifeos-exercises";
 
 type WorkoutLog = {
   id: string;
@@ -24,9 +25,11 @@ type WorkoutLog = {
   caloriesBurned: number;
   calorieSource: WorkoutCalorieSource;
   notes: string;
+  planId?: string;
 };
 
 type Draft = {
+  planId: string;
   activityKey: WorkoutActivityKey;
   customActivity: string;
   intensity: WorkoutIntensity;
@@ -43,13 +46,13 @@ function localDateTime(date = new Date()) {
 }
 
 function newDraft(bodyWeightLbs = ""): Draft {
-  return { activityKey: "STRENGTH", customActivity: "", intensity: "MODERATE", performedAt: localDateTime(), durationMinutes: "45", bodyWeightLbs, manualCalories: "", notes: "" };
+  return { planId: "", activityKey: "STRENGTH", customActivity: "", intensity: "MODERATE", performedAt: localDateTime(), durationMinutes: "45", bodyWeightLbs, manualCalories: "", notes: "" };
 }
 
 const intensityLabels: Record<WorkoutIntensity, string> = { LIGHT: "Light", MODERATE: "Moderate", VIGOROUS: "Vigorous" };
 const inputClass = "mt-1 min-h-11 w-full rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-base text-slate-100 focus:border-emerald-300 focus:outline-none focus:ring-2 focus:ring-emerald-300/25";
 
-export default function WorkoutTracker() {
+export default function WorkoutTracker({ plannedWorkout = null, onWorkoutSaved }: { plannedWorkout?: PlannedWorkoutHandoff | null; onWorkoutSaved?: () => void }) {
   const [workouts, setWorkouts] = useState<WorkoutLog[]>([]);
   const [draft, setDraft] = useState<Draft>(() => newDraft());
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -69,6 +72,26 @@ export default function WorkoutTracker() {
   }
 
   useEffect(() => { load().catch((caught) => setError(caught instanceof Error ? caught.message : "Unable to load workout history")); }, []);
+
+  useEffect(() => {
+    if (!plannedWorkout) return;
+    const lastWeight = workouts[0]?.bodyWeightLbs;
+    setDraft({
+      planId: plannedWorkout.planId,
+      activityKey: "OTHER",
+      customActivity: plannedWorkout.title,
+      intensity: "MODERATE",
+      performedAt: `${plannedWorkout.scheduledFor}T09:00`,
+      durationMinutes: String(plannedWorkout.durationMinutes),
+      bodyWeightLbs: lastWeight ? String(lastWeight) : draft.bodyWeightLbs,
+      manualCalories: "",
+      notes: plannedWorkout.notes,
+    });
+    setEditingId(null);
+    setEditorOpen(true);
+    setError("");
+    setNotice("Weekly plan loaded. Add your actual time, intensity, and weight, then save it to history.");
+  }, [plannedWorkout]);
 
   const liveEstimate = useMemo(() => {
     const duration = Number(draft.durationMinutes);
@@ -97,7 +120,7 @@ export default function WorkoutTracker() {
   }
 
   function beginEdit(workout: WorkoutLog) {
-    setDraft({ activityKey: workout.activityKey, customActivity: workout.activityKey === "OTHER" ? workout.activityLabel : "", intensity: workout.intensity, performedAt: localDateTime(new Date(workout.occurredAt)), durationMinutes: String(workout.durationMinutes), bodyWeightLbs: String(workout.bodyWeightLbs), manualCalories: workout.calorieSource === "MANUAL" ? String(workout.caloriesBurned) : "", notes: workout.notes });
+    setDraft({ planId: workout.planId ?? "", activityKey: workout.activityKey, customActivity: workout.activityKey === "OTHER" ? workout.activityLabel : "", intensity: workout.intensity, performedAt: localDateTime(new Date(workout.occurredAt)), durationMinutes: String(workout.durationMinutes), bodyWeightLbs: String(workout.bodyWeightLbs), manualCalories: workout.calorieSource === "MANUAL" ? String(workout.caloriesBurned) : "", notes: workout.notes });
     setEditingId(workout.id);
     setEditorOpen(true);
     setError("");
@@ -124,6 +147,7 @@ export default function WorkoutTracker() {
       setEditorOpen(false);
       setEditingId(null);
       setNotice(editingId ? "Workout updated" : "Workout logged");
+      onWorkoutSaved?.();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Unable to save workout");
     } finally {
@@ -162,7 +186,7 @@ export default function WorkoutTracker() {
     </div>
 
     {editorOpen && <div id="workout-editor" className="mt-5 scroll-mt-8 rounded-xl border border-emerald-600/60 bg-slate-900 p-4">
-      <div className="flex items-center justify-between gap-3"><h4 className="font-semibold text-slate-100">{editingId ? "Edit workout" : "Log a workout"}</h4><button type="button" onClick={() => { setEditorOpen(false); setEditingId(null); }} className="min-h-11 rounded-lg border border-slate-600 px-4 text-sm font-semibold text-slate-300">Close</button></div>
+      <div className="flex items-center justify-between gap-3"><div><h4 className="font-semibold text-slate-100">{editingId ? "Edit workout" : "Log a workout"}</h4>{draft.planId && <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-sky-300">Loaded from weekly plan</p>}</div><button type="button" onClick={() => { setEditorOpen(false); setEditingId(null); }} className="min-h-11 rounded-lg border border-slate-600 px-4 text-sm font-semibold text-slate-300">Close</button></div>
       <form onSubmit={save} className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <label className="text-sm font-medium text-slate-300">Workout<select value={draft.activityKey} onChange={(event) => setDraft({ ...draft, activityKey: event.target.value as WorkoutActivityKey })} className={inputClass}>{WORKOUT_ACTIVITIES.map((activity) => <option key={activity.key} value={activity.key}>{activity.label}</option>)}</select></label>
         {draft.activityKey === "OTHER" && <label className="text-sm font-medium text-slate-300">Workout name<input required maxLength={120} value={draft.customActivity} onChange={(event) => setDraft({ ...draft, customActivity: event.target.value })} className={inputClass} placeholder="Rucking, dance class…" /></label>}
@@ -179,7 +203,7 @@ export default function WorkoutTracker() {
     <div className="mt-5 flex flex-wrap items-end justify-between gap-3"><div><h4 className="font-semibold text-slate-100">Workout history</h4><p className="text-sm text-slate-500">Encrypted and visible only to the LifeOS owner.</p></div><label className="w-full text-sm font-medium text-slate-300 sm:w-72">Search history<input value={search} onChange={(event) => setSearch(event.target.value)} className={inputClass} placeholder="Workout, intensity, notes…" /></label></div>
     <div className="mt-3 space-y-3">
       {visible.map((workout) => <article key={workout.id} className="rounded-xl border border-slate-700 bg-slate-950/65 p-4">
-        <div className="flex flex-wrap items-start justify-between gap-3"><div><h5 className="font-semibold text-slate-100">{workout.activityLabel}</h5><p className="mt-1 text-sm text-slate-400">{new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(workout.occurredAt))} · {workout.durationMinutes} min · {intensityLabels[workout.intensity]}</p></div><div className="text-right"><p className="text-lg font-semibold text-emerald-300">{workout.caloriesBurned.toLocaleString()} cal</p><p className="text-xs uppercase tracking-wide text-slate-500">{workout.calorieSource === "MANUAL" ? "Device / manual" : "Estimated"}</p></div></div>
+        <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex flex-wrap items-center gap-2"><h5 className="font-semibold text-slate-100">{workout.activityLabel}</h5>{workout.planId && <span className="rounded-full border border-sky-800 px-2 py-1 text-xs font-semibold text-sky-300">Weekly plan</span>}</div><p className="mt-1 text-sm text-slate-400">{new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(new Date(workout.occurredAt))} · {workout.durationMinutes} min · {intensityLabels[workout.intensity]}</p></div><div className="text-right"><p className="text-lg font-semibold text-emerald-300">{workout.caloriesBurned.toLocaleString()} cal</p><p className="text-xs uppercase tracking-wide text-slate-500">{workout.calorieSource === "MANUAL" ? "Device / manual" : "Estimated"}</p></div></div>
         {workout.notes && <p className="mt-3 text-sm leading-6 text-slate-400">{workout.notes}</p>}
         <div className="mt-3 flex flex-wrap gap-2"><button type="button" onClick={() => beginEdit(workout)} className="min-h-11 rounded-lg border border-slate-600 px-3 text-sm font-semibold text-slate-300 hover:bg-slate-800">Edit</button><button type="button" disabled={busy} onClick={() => void remove(workout)} className="min-h-11 rounded-lg px-3 text-sm font-semibold text-red-300 hover:bg-red-950/40 disabled:opacity-50">Remove</button></div>
       </article>)}

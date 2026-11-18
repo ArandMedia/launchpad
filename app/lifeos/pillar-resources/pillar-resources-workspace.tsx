@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "@/app/components/StableLink";
-import WorkoutTracker from "./workout-tracker";
+import FitnessResources from "./fitness-resources";
 import {
   BUILT_IN_PILLAR_RESOURCES,
   PILLAR_RESOURCE_CATEGORIES,
@@ -189,7 +189,7 @@ export default function PillarResourcesWorkspace() {
       </div>
     </section>
 
-    {activePillar === "HEALTH" && <WorkoutTracker />}
+    {activePillar === "HEALTH" && <FitnessResources />}
 
     <section className="rounded-2xl border border-slate-700 bg-slate-900 p-4 sm:p-5" aria-labelledby="resource-library-heading">
       <div className="flex flex-wrap items-start justify-between gap-3">

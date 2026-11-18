@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { decryptCalendarFeedUrl, decryptHealthPayload, decryptWorkoutPayload, encryptCalendarFeedUrl, encryptHealthPayload, encryptWorkoutPayload, isDomainKey } from "./lifeos-core";
+import { decryptCalendarFeedUrl, decryptHealthPayload, decryptWorkoutPayload, decryptWorkoutPlanPayload, encryptCalendarFeedUrl, encryptHealthPayload, encryptWorkoutPayload, encryptWorkoutPlanPayload, isDomainKey } from "./lifeos-core";
 
 describe("LifeOS modular core", () => {
   afterEach(() => delete process.env.LIFEOS_HEALTH_ENCRYPTION_KEY);
@@ -32,5 +32,13 @@ describe("LifeOS modular core", () => {
     expect(encrypted.ciphertext).not.toContain("Felt steady");
     expect(decryptWorkoutPayload(encrypted)).toEqual(workout);
     expect(() => decryptWorkoutPayload({ ...encrypted, authTag: Buffer.alloc(16).toString("base64") })).toThrow();
+  });
+
+  it("encrypts the weekly exercise plan separately from workout history", () => {
+    process.env.LIFEOS_HEALTH_ENCRYPTION_KEY = "test-health-key-with-at-least-24-characters";
+    const plan = { title: "Monday upper body", notes: "Stay controlled", exercises: [{ itemId: "item-1", catalogId: "bench-press", name: "Bench press", sets: 3, reps: "8", durationMinutes: null, notes: "" }] };
+    const encrypted = encryptWorkoutPlanPayload(plan);
+    expect(encrypted.ciphertext).not.toContain("Bench press");
+    expect(decryptWorkoutPlanPayload(encrypted)).toEqual(plan);
   });
 });

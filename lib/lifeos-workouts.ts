@@ -28,6 +28,7 @@ export type WorkoutPayload = {
   caloriesBurned: number;
   calorieSource: WorkoutCalorieSource;
   notes: string;
+  planId?: string;
 };
 
 export function isWorkoutActivityKey(value: unknown): value is WorkoutActivityKey {
@@ -66,5 +67,6 @@ export function validateWorkoutPayload(value: unknown): value is WorkoutPayload 
     && typeof payload.estimatedCalories === "number" && Number.isInteger(payload.estimatedCalories) && payload.estimatedCalories >= 1 && payload.estimatedCalories <= 500000
     && typeof payload.caloriesBurned === "number" && Number.isInteger(payload.caloriesBurned) && payload.caloriesBurned >= 1 && payload.caloriesBurned <= 500000
     && (payload.calorieSource === "ESTIMATED" || payload.calorieSource === "MANUAL")
-    && typeof payload.notes === "string" && payload.notes.length <= 2000;
+    && typeof payload.notes === "string" && payload.notes.length <= 2000
+    && (payload.planId === undefined || (typeof payload.planId === "string" && payload.planId.length <= 100));
 }
