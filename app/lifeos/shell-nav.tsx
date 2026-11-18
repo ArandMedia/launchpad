@@ -8,6 +8,7 @@ const links = [
   ["Decision Matrix", "/lifeos/decision-matrix", "Prioritize today"],
   ["Timeline", "/lifeos/timeline", "Life → Hour"],
   ["Pillars", "/lifeos/pillars", "Health · Wealth · Relationships"],
+  ["Pillar Resources", "/lifeos/pillar-resources", "Tools · Guides · Links"],
   ["Self & Purpose", "/lifeos/self", "Identity · Learning · Principles"],
   ["ArandMedia", "/lifeos/arandmedia", "Portfolio alignment"],
   ["Operation OMNIS", "/lifeos/omnis", "Mission · Strategy"],

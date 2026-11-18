@@ -369,6 +369,23 @@ model LifeOSDecisionPlacement {
   @@index([ownerId, date, quadrant])
 }
 
+model LifeOSPillarResource {
+  id           String   @id @default(cuid())
+  ownerId      String
+  pillarKey    String
+  category     String
+  resourceType String   @default("LINK")
+  title        String
+  description  String   @default("")
+  url          String   @default("")
+  favorite     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([ownerId, pillarKey, category])
+  @@index([ownerId, favorite, updatedAt])
+}
+
 model LifeOSMetricDefinition {
   id                 String                    @id @default(cuid())
   ownerId            String
