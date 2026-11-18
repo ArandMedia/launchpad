@@ -14,6 +14,10 @@ vi.mock("@/lib/db", () => ({
       updateMany: vi.fn(async ({ where, data }) => { const workout = state.workouts.find((item) => item.id === where.id && item.ownerId === where.ownerId); if (!workout) return { count: 0 }; Object.assign(workout, data, { updatedAt: new Date() }); return { count: 1 }; }),
       deleteMany: vi.fn(async ({ where }) => { const before = state.workouts.length; state.workouts = state.workouts.filter((item) => !(item.id === where.id && item.ownerId === where.ownerId)); return { count: before - state.workouts.length }; }),
     },
+    lifeOSWorkoutPlan: {
+      findFirst: vi.fn(async ({ where }) => where.id === "plan-1" && where.ownerId === state.ownerId ? { id: "plan-1" } : null),
+      updateMany: vi.fn(async ({ where }) => ({ count: where.id === "plan-1" && where.ownerId === state.ownerId ? 1 : 0 })),
+    },
     lifeOSActivity: { create: vi.fn(async ({ data }) => { state.activities.push(data); return data; }) },
   },
 }));
@@ -57,6 +61,13 @@ describe("workout tracker API", () => {
     const response = await POST(request("POST", { ...validWorkout, manualCalories: 321 }));
     const created = await response.json();
     expect(created).toMatchObject({ caloriesBurned: 321, calorieSource: "MANUAL" });
+  });
+
+  it("links a planned day to the encrypted workout log", async () => {
+    state.ownerId = "owner-1";
+    const response = await POST(request("POST", { ...validWorkout, planId: "plan-1" }));
+    const created = await response.json();
+    expect(created).toMatchObject({ planId: "plan-1" });
   });
 
   it("validates inputs and scopes updates and deletes to the owner", async () => {

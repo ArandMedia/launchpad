@@ -71,8 +71,13 @@ export async function POST(req: NextRequest) {
   if (!body || typeof body !== "object") return invalid();
   const input = workoutInput(body);
   if (!input) return invalid("Enter a valid workout time, duration, body weight, activity, and calorie value.");
+  const requestedPlanId = typeof body.planId === "string" ? body.planId : "";
+  const plan = requestedPlanId ? await db.lifeOSWorkoutPlan.findFirst({ where: { id: requestedPlanId, ownerId }, select: { id: true } }) : null;
+  if (requestedPlanId && !plan) return invalid("That workout plan is no longer available.");
+  if (plan) input.payload.planId = plan.id;
   const encrypted = encryptWorkoutPayload(input.payload);
   const workout = await db.lifeOSWorkout.create({ data: { ownerId, occurredAt: input.occurredAt, ...encrypted } });
+  if (plan) await db.lifeOSWorkoutPlan.updateMany({ where: { id: plan.id, ownerId }, data: { workoutId: workout.id } });
   await db.lifeOSActivity.create({ data: { ownerId, domainKey: "HEALTH", entityType: "WORKOUT", entityId: workout.id, action: "RECORDED", summary: "Encrypted workout recorded" } });
   return NextResponse.json({ id: workout.id, occurredAt: workout.occurredAt.toISOString(), ...input.payload }, { status: 201 });
 }
@@ -84,9 +89,14 @@ export async function PATCH(req: NextRequest) {
   if (!body || typeof body !== "object" || typeof body.id !== "string") return invalid();
   const input = workoutInput(body);
   if (!input) return invalid("Enter a valid workout time, duration, body weight, activity, and calorie value.");
+  const requestedPlanId = typeof body.planId === "string" ? body.planId : "";
+  const plan = requestedPlanId ? await db.lifeOSWorkoutPlan.findFirst({ where: { id: requestedPlanId, ownerId }, select: { id: true } }) : null;
+  if (requestedPlanId && !plan) return invalid("That workout plan is no longer available.");
+  if (plan) input.payload.planId = plan.id;
   const encrypted = encryptWorkoutPayload(input.payload);
   const updated = await db.lifeOSWorkout.updateMany({ where: { id: body.id, ownerId }, data: { occurredAt: input.occurredAt, ...encrypted } });
   if (!updated.count) return fail();
+  if (plan) await db.lifeOSWorkoutPlan.updateMany({ where: { id: plan.id, ownerId }, data: { workoutId: body.id } });
   await db.lifeOSActivity.create({ data: { ownerId, domainKey: "HEALTH", entityType: "WORKOUT", entityId: body.id, action: "UPDATED", summary: "Encrypted workout updated" } });
   return NextResponse.json({ ok: true });
 }
