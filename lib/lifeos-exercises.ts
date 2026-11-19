@@ -97,10 +97,6 @@ export function exerciseInstruction(exercise: CatalogExercise): ExerciseInstruct
   return { ...base, visual, setup: `Set up the ${exercise.equipment.toLowerCase()} for ${exercise.name.toLowerCase()}. Start with a light, controllable resistance and a clear range of motion.` };
 }
 
-export function exerciseVideoSearchUrl(exercise: CatalogExercise) {
-  return `https://www.youtube.com/results?search_query=${encodeURIComponent(`${exercise.name} proper form exercise demonstration`)}`;
-}
-
 export type PlannedExercise = { itemId: string; catalogId: string; name: string; sets: number | null; reps: string; durationMinutes: number | null; notes: string };
 export type WorkoutPlanPayload = { title: string; notes: string; exercises: PlannedExercise[] };
 export type PlannedWorkoutHandoff = { planId: string; title: string; scheduledFor: string; durationMinutes: number; notes: string };

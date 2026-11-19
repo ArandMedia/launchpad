@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { exerciseInstruction, exerciseVideoSearchUrl, type CatalogExercise, type ExerciseVisual } from "@/lib/lifeos-exercises";
+import { useEffect, useRef, useState } from "react";
+import { exerciseInstruction, type CatalogExercise, type ExerciseVisual } from "@/lib/lifeos-exercises";
 
 function Pose({ visual, finish }: { visual: ExerciseVisual; finish: boolean }) {
   const stroke = "#bae6fd";
@@ -29,19 +29,22 @@ function Pose({ visual, finish }: { visual: ExerciseVisual; finish: boolean }) {
   return <g {...common}><circle cx="130" cy="45" r="14" /><line x1="130" y1="60" x2="130" y2="120" /><line x1="130" y1="120" x2="105" y2="170" /><line x1="130" y1="120" x2="155" y2="170" /><line x1="128" y1="78" x2="98" y2={armY} /><line x1="132" y1="78" x2="162" y2={armY} /><line x1="98" y1={armY} x2="80" y2={overhead && finish ? 24 : pulldown && !finish ? 25 : row && finish ? 105 : armY + 18} /><line x1="162" y1={armY} x2="180" y2={overhead && finish ? 24 : pulldown && !finish ? 25 : row && finish ? 105 : armY + 18} /><path d={overhead ? "M205 105 L205 55 M196 64 L205 55 L214 64" : pulldown ? "M205 45 L205 95 M196 86 L205 95 L214 86" : "M205 80 L175 80 M184 71 L175 80 L184 89"} stroke={accent} /></g>;
 }
 
-function MovementIllustration({ visual }: { visual: ExerciseVisual }) {
-  return <svg viewBox="0 0 600 220" role="img" aria-label="Illustrated start and finish positions" className="mt-4 w-full rounded-xl border border-slate-700 bg-slate-950">
+function MovementIllustration({ visual, playing, phase }: { visual: ExerciseVisual; playing: boolean; phase: boolean }) {
+  return <svg viewBox="0 0 600 220" role="img" aria-label={playing ? `Movement demo showing the ${phase ? "finish" : "start"} position` : "Illustrated start and finish positions"} className="mt-4 w-full rounded-xl border border-slate-700 bg-slate-950">
     <rect x="12" y="12" width="276" height="196" rx="14" fill="#07101f" stroke="#334155" />
     <rect x="312" y="12" width="276" height="196" rx="14" fill="#07101f" stroke="#334155" />
     <text x="30" y="40" fill="#94a3b8" fontSize="13" fontWeight="700" letterSpacing="2">START</text>
     <text x="330" y="40" fill="#38bdf8" fontSize="13" fontWeight="700" letterSpacing="2">FINISH</text>
-    <g transform="translate(12 18)"><Pose visual={visual} finish={false} /></g>
-    <g transform="translate(312 18)"><Pose visual={visual} finish /></g>
+    <g transform="translate(12 18)" opacity={playing && phase ? 0.22 : 1} style={{ transition: "opacity 300ms ease" }}><Pose visual={visual} finish={false} /></g>
+    <g transform="translate(312 18)" opacity={playing && !phase ? 0.22 : 1} style={{ transition: "opacity 300ms ease" }}><Pose visual={visual} finish /></g>
+    {playing && <text x="300" y="205" textAnchor="middle" fill="#7dd3fc" fontSize="13" fontWeight="700">{phase ? "FINISH — return with control" : "START — set your position"}</text>}
   </svg>;
 }
 
-export default function ExerciseInstructionDialog({ exercise, onClose, onPlan }: { exercise: CatalogExercise; onClose: () => void; onPlan: (exercise: CatalogExercise) => void }) {
+export default function ExerciseInstructionDialog({ exercise, onClose, onPlan, returnLabel, showPlanAction }: { exercise: CatalogExercise; onClose: () => void; onPlan: (exercise: CatalogExercise) => void; returnLabel: string; showPlanAction: boolean }) {
   const closeRef = useRef<HTMLButtonElement>(null);
+  const [playing, setPlaying] = useState(false);
+  const [phase, setPhase] = useState(false);
   const instruction = exerciseInstruction(exercise);
   useEffect(() => {
     const previous = document.body.style.overflow;
@@ -52,17 +55,24 @@ export default function ExerciseInstructionDialog({ exercise, onClose, onPlan }:
     return () => { document.body.style.overflow = previous; window.removeEventListener("keydown", onKeyDown); };
   }, [onClose]);
 
+  useEffect(() => {
+    if (!playing) { setPhase(false); return; }
+    const interval = window.setInterval(() => setPhase((value) => !value), 900);
+    return () => window.clearInterval(interval);
+  }, [playing]);
+
   return <div className="fixed inset-0 z-[80] flex items-center justify-center bg-slate-950/85 p-3 backdrop-blur-sm sm:p-6" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose(); }}>
     <section role="dialog" aria-modal="true" aria-labelledby="exercise-guide-title" className="max-h-[94dvh] w-full max-w-3xl overflow-y-auto overscroll-contain rounded-2xl border border-sky-700 bg-slate-900 p-4 shadow-2xl shadow-black/60 sm:p-6">
       <div className="flex items-start justify-between gap-4"><div><p className="text-sm font-semibold uppercase tracking-[0.15em] text-sky-300">{exercise.category === "UPPER" ? "Upper body" : exercise.category === "LOWER" ? "Lower body" : "Cardio"} · {exercise.equipment}</p><h3 id="exercise-guide-title" className="mt-1 text-2xl font-semibold text-slate-50">{exercise.name}</h3><p className="mt-1 text-base text-slate-400">{exercise.muscleGroup} · {exercise.pattern}</p></div><button ref={closeRef} type="button" onClick={onClose} aria-label="Close exercise guide" className="min-h-11 min-w-11 rounded-lg border border-slate-600 text-xl text-slate-200 hover:bg-slate-800">×</button></div>
 
-      <MovementIllustration visual={instruction.visual} />
+      <MovementIllustration visual={instruction.visual} playing={playing} phase={phase} />
+      <button type="button" aria-pressed={playing} onClick={() => setPlaying((value) => !value)} className="mt-3 min-h-11 w-full rounded-lg border border-sky-700 bg-sky-950/30 px-4 text-sm font-semibold text-sky-200 hover:bg-sky-950/60">{playing ? "Pause movement demo" : "Play movement demo"}</button>
 
       <div className="mt-5 grid gap-4 md:grid-cols-2"><div className="rounded-xl border border-slate-700 bg-slate-950/60 p-4"><h4 className="text-base font-semibold text-slate-100">Set up</h4><p className="mt-2 text-base leading-6 text-slate-300">{instruction.setup}</p></div><div className="rounded-xl border border-amber-800/70 bg-amber-950/20 p-4"><h4 className="text-base font-semibold text-amber-200">Watch for</h4><p className="mt-2 text-base leading-6 text-slate-300">{instruction.watchFor}</p></div></div>
       <div className="mt-4 rounded-xl border border-slate-700 bg-slate-950/60 p-4"><h4 className="text-base font-semibold text-slate-100">How to do it</h4><ol className="mt-3 space-y-3">{instruction.steps.map((step, index) => <li key={step} className="flex gap-3 text-base leading-6 text-slate-300"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-sky-400 font-semibold text-slate-950">{index + 1}</span><span>{step}</span></li>)}</ol></div>
       <p className="mt-4 text-sm leading-5 text-slate-500">The illustration is a positioning guide, not a substitute for in-person coaching. Start light, use the machine safety stops where applicable, and stop if a movement causes pain, dizziness, or unusual symptoms.</p>
 
-      <div className="mt-5 flex flex-wrap justify-end gap-2"><a href={exerciseVideoSearchUrl(exercise)} target="_blank" rel="noopener noreferrer" className="flex min-h-11 items-center rounded-lg border border-slate-600 px-4 text-sm font-semibold text-slate-200 hover:bg-slate-800">Find a video demonstration</a><button type="button" onClick={() => { onPlan(exercise); onClose(); }} className="min-h-11 rounded-lg bg-sky-400 px-4 text-sm font-semibold text-slate-950 hover:bg-sky-300">Add to weekly plan</button></div>
+      <div className="mt-5 flex flex-wrap justify-end gap-2"><button type="button" onClick={onClose} className="min-h-11 rounded-lg border border-slate-600 px-4 text-sm font-semibold text-slate-200 hover:bg-slate-800">{returnLabel}</button>{showPlanAction && <button type="button" onClick={() => { onPlan(exercise); onClose(); }} className="min-h-11 rounded-lg bg-sky-400 px-4 text-sm font-semibold text-slate-950 hover:bg-sky-300">Add to weekly plan</button>}</div>
     </section>
   </div>;
 }
