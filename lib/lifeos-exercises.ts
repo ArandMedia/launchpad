@@ -62,6 +62,45 @@ export const EXERCISE_CATALOG: CatalogExercise[] = [
 export const EXERCISE_MUSCLE_GROUPS = [...new Set(EXERCISE_CATALOG.map((exercise) => exercise.muscleGroup))].sort();
 export const EXERCISE_EQUIPMENT = [...new Set(EXERCISE_CATALOG.map((exercise) => exercise.equipment))].sort();
 
+export type ExerciseVisual = "CHEST_PRESS" | "OVERHEAD" | "PULLDOWN" | "ROW" | "ARMS" | "SQUAT" | "HINGE" | "LUNGE" | "CALF" | "GLUTE_BRIDGE" | "ROWER" | "TREADMILL" | "BIKE";
+export type ExerciseInstruction = { setup: string; steps: [string, string, string]; watchFor: string; visual: ExerciseVisual };
+
+const PATTERN_INSTRUCTIONS: Record<string, Omit<ExerciseInstruction, "setup">> = {
+  "Horizontal push": { visual: "CHEST_PRESS", steps: ["Set the shoulders down and back with wrists stacked over the forearms.", "Lower the resistance smoothly until you reach a comfortable shoulder depth.", "Press away while keeping the chest stable and finish without forcefully locking the elbows."], watchFor: "Avoid bouncing, flaring the elbows straight out, or letting the shoulders roll forward." },
+  "Incline push": { visual: "CHEST_PRESS", steps: ["Set the bench to a modest incline and plant both feet.", "Lower the resistance toward the upper chest with the wrists stacked.", "Press up and slightly back while keeping the shoulders supported."], watchFor: "Avoid an overly steep bench angle or arching the low back to finish the rep." },
+  "Vertical push": { visual: "OVERHEAD", steps: ["Brace the trunk and begin with hands near shoulder height.", "Press upward through a comfortable path while keeping the ribs controlled.", "Finish overhead without shrugging, then lower slowly."], watchFor: "Avoid leaning back, bouncing from the bottom, or forcing a painful overhead range." },
+  "Vertical pull": { visual: "PULLDOWN", steps: ["Sit tall, secure the thighs, and begin with arms extended overhead.", "Pull the elbows down toward the ribs as the handle approaches the upper chest.", "Return under control until the shoulders and elbows are comfortably extended."], watchFor: "Avoid pulling behind the neck, swinging the torso, or yanking with momentum." },
+  "Horizontal pull": { visual: "ROW", steps: ["Set a tall, braced posture with the arms reaching toward the resistance.", "Drive the elbows back and draw the handle or weight toward the ribs.", "Pause briefly, then extend the arms without rounding the back."], watchFor: "Avoid rocking the torso, shrugging, or pulling farther than the shoulder can control." },
+  Adduction: { visual: "CHEST_PRESS", steps: ["Set the cables and step into a balanced stance with soft elbows.", "Bring the hands toward each other in a wide hugging motion.", "Pause before the hands meet, then reopen slowly to a comfortable stretch."], watchFor: "Avoid locking the elbows, overstretching the shoulders, or letting the weights snap back." },
+  "Elbow extension": { visual: "ARMS", steps: ["Stand tall with the elbows close to the sides.", "Straighten the elbows while keeping the upper arms still.", "Pause at extension, then return the handle slowly."], watchFor: "Avoid leaning over the handle, moving the shoulders, or flaring the elbows." },
+  "Elbow flexion": { visual: "ARMS", steps: ["Stand tall with the upper arms quiet and palms in the chosen grip.", "Bend the elbows and raise the resistance without swinging.", "Squeeze briefly, then lower through the full controlled range."], watchFor: "Avoid leaning back, driving the elbows forward, or dropping the weight quickly." },
+  Raise: { visual: "OVERHEAD", steps: ["Stand tall with light weights resting near the sides.", "Raise the arms smoothly to about shoulder height with soft elbows.", "Pause, then lower without letting the weights fall."], watchFor: "Avoid shrugging, swinging, or raising through shoulder pain." },
+  Squat: { visual: "SQUAT", steps: ["Set the feet securely, brace the trunk, and keep the whole foot grounded.", "Sit the hips down while the knees track in line with the toes.", "Drive the floor away to stand, keeping the torso controlled."], watchFor: "Avoid heels lifting, knees collapsing inward, or descending beyond the range you can control." },
+  "Single-leg squat": { visual: "LUNGE", steps: ["Set a split stance and use support if balance is uncertain.", "Lower straight down while keeping the front foot planted.", "Drive through the front foot to return without twisting."], watchFor: "Avoid a narrow unstable stance, the front knee collapsing inward, or pushing mostly from the back leg." },
+  Hinge: { visual: "HINGE", steps: ["Brace the trunk with the resistance close to the body.", "Push the hips backward while keeping a long neutral spine.", "Drive the hips forward to stand without leaning back at the top."], watchFor: "Avoid rounding the back, turning the movement into a squat, or letting the load drift away." },
+  Lunge: { visual: "LUNGE", steps: ["Stand tall and step back far enough to create a stable base.", "Lower both knees under control with the front foot planted.", "Drive through the front foot to return to standing."], watchFor: "Avoid stepping onto a tightrope, slamming the back knee down, or letting the front knee collapse inward." },
+  "Single-leg hinge": { visual: "HINGE", steps: ["Stand on one leg with a soft knee and use support if needed.", "Reach the free leg back as the torso and hips hinge forward together.", "Keep the hips level and drive through the standing foot to return."], watchFor: "Avoid opening the hips, rounding the back, or prioritizing depth over balance." },
+  "Ankle extension": { visual: "CALF", steps: ["Stand tall with the balls of the feet secure and support nearby.", "Rise smoothly onto the toes through the largest comfortable range.", "Pause at the top, then lower the heels under control."], watchFor: "Avoid bouncing, rolling the ankles outward, or rushing the lowering phase." },
+  "Steady aerobic": { visual: "TREADMILL", steps: ["Set the equipment and pace so posture and breathing feel controlled.", "Maintain a repeatable rhythm at the planned effort.", "Ease the pace for the final minutes before stopping."], watchFor: "Avoid starting too hard, holding the rails unnecessarily, or ignoring dizziness or unusual symptoms." },
+  Intervals: { visual: "TREADMILL", steps: ["Warm up at an easy effort before the first work interval.", "Alternate repeatable work periods with genuine easy recovery.", "Finish with an easy cooldown instead of stopping abruptly."], watchFor: "Avoid sprinting to exhaustion, shortening recovery until form breaks down, or skipping the warmup." },
+  "Recovery aerobic": { visual: "ROWER", steps: ["Choose light resistance and begin at a relaxed pace.", "Keep each stroke smooth while breathing conversationally.", "Finish feeling looser and fresher than when you started."], watchFor: "Avoid turning recovery work into another hard session." },
+  "Incline aerobic": { visual: "TREADMILL", steps: ["Begin flat and raise the incline gradually after warming up.", "Walk tall with short controlled steps and steady breathing.", "Reduce the incline before ending with an easy cooldown."], watchFor: "Avoid hanging on the rails or using an incline that changes your natural walking posture." },
+};
+
+export function exerciseInstruction(exercise: CatalogExercise): ExerciseInstruction {
+  const base = PATTERN_INSTRUCTIONS[exercise.pattern] ?? PATTERN_INSTRUCTIONS[exercise.kind === "CARDIO" ? "Steady aerobic" : "Horizontal pull"];
+  let visual = base.visual;
+  if (exercise.equipment === "Merach RS3 rower") visual = "ROWER";
+  else if (exercise.equipment === "Bike") visual = "BIKE";
+  else if (exercise.equipment === "Treadmill") visual = "TREADMILL";
+  else if (exercise.pattern === "Hinge" && exercise.name.includes("bridge")) visual = "GLUTE_BRIDGE";
+  return { ...base, visual, setup: `Set up the ${exercise.equipment.toLowerCase()} for ${exercise.name.toLowerCase()}. Start with a light, controllable resistance and a clear range of motion.` };
+}
+
+export function exerciseVideoSearchUrl(exercise: CatalogExercise) {
+  return `https://www.youtube.com/results?search_query=${encodeURIComponent(`${exercise.name} proper form exercise demonstration`)}`;
+}
+
 export type PlannedExercise = { itemId: string; catalogId: string; name: string; sets: number | null; reps: string; durationMinutes: number | null; notes: string };
 export type WorkoutPlanPayload = { title: string; notes: string; exercises: PlannedExercise[] };
 export type PlannedWorkoutHandoff = { planId: string; title: string; scheduledFor: string; durationMinutes: number; notes: string };
